@@ -1,2 +1,272 @@
 <?php
 // $Id$
+
+/**
+ * Simple debug function for use during developmet.
+ */
+function debug($variable) {
+  $message = '<pre>'. var_export($variable, TRUE) .'</pre>';
+  drupal_set_message($message, 'status', FALSE);
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function icon_perm() {
+  return array('administer icons');
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function icon_theme() {
+  return array(
+    'icon_overview_form' => array(
+      'arguments' => array('form' => NULL),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function icon_menu() {
+  $items['admin/build/icons'] = array(
+    'title' => 'Icons',
+    'description' => 'Administer icon sets and choose which icons to use.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('icon_overview_form'),
+    'access arguments' => array('administer icons'),
+  );
+  $items['admin/build/icons/select'] = array(
+    'title' => 'Icon sets',
+    'description' => 'Enable or disable icon sets.',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => -1,
+  );
+
+  // Add configuration pages for enabled themes.
+  include_once('includes/theme.inc');
+  foreach (list_themes() as $theme) {
+    if ($theme->status) {
+      $items['admin/build/icons/settings/'. $theme->name] = array(
+        'title' => $theme->info['name'],
+        'page callback' => 'icon_theme_icons',
+        'page arguments' => array($theme->name),
+        'access arguments' => array('administer icons'),
+        'type' => MENU_LOCAL_TASK,
+      );
+    }
+  }
+
+  return $items;
+}
+
+/**
+ * Menu callback; displays a listing of all icon sets.
+ *
+ * @see system_themes_form()
+ */
+function icon_overview_form() {
+  // uasort() needs to access the system_sort_modules_by_info_name() function.
+  // @TODO Would having a copy of that function here save some processing?
+  include_once(drupal_get_path('module', 'system') .'/system.admin.inc');
+
+  drupal_clear_css_cache();
+  $iconsets = icon_iconset_data();
+
+  uasort($iconsets, 'system_sort_modules_by_info_name');
+
+  $status = array();
+
+  foreach ($iconsets as $iconset) {
+    $screenshot = NULL;
+    if (file_exists($iconsets[$iconset->name]->info['screenshot'])) {
+      $screenshot = $iconsets[$iconset->name]->info['screenshot'];
+    }
+    $screenshot = $screenshot ? theme('image', $screenshot, t('Screenshot for %iconset icon set', array('%iconset' => $iconset->info['name'])), '', array('class' => 'screenshot'), FALSE) : t('no screenshot');
+
+    $form[$iconset->name]['screenshot'] = array('#value' => $screenshot);
+
+    $form[$iconset->name]['info'] = array(
+      '#type' => 'value',
+      '#value' => $iconset->info,
+    );
+
+    $options[$iconset->name] = '';
+    if (!empty($iconset->status)) {
+      $status[] = $iconset->name;
+    }
+  }
+
+  $form['status'] = array(
+    '#type' => 'checkboxes',
+    '#options' => $options,
+    '#default_value' => $status,
+  );
+  $form['buttons']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save configuration'),
+  );
+  $form['buttons']['reset'] = array(
+    '#type' => 'submit',
+    '#value' => t('Reset to defaults'),
+  );
+  return $form;
+}
+
+/**
+ * Process icon_overview_form form submissions.
+ */
+function icon_overview_form_submit($form, &$form_state) {
+  db_query("UPDATE {system} SET status = 0 WHERE type = 'iconset'");
+  if ($form_state['values']['op'] == t('Save configuration')) {
+    if (is_array($form_state['values']['status'])) {
+      foreach ($form_state['values']['status'] as $key => $choice) {
+        if ($choice) {
+          db_query("UPDATE {system} SET status = 1 WHERE type = 'iconset' and name = '%s'", $key);
+        }
+      }
+    }
+  }
+  else {
+    // Revert to defaults.
+  }
+
+  drupal_set_message(t('The configuration options have been saved.'));
+  $form_state['redirect'] = 'admin/build/icons';
+}
+
+/**
+ * Menu callback; displays a listing of all icons available to a theme.
+ */
+function icon_theme_icons($theme_name) {
+  $output = t('UI for selecting icons for %theme here.', array('%theme' => $theme_name));
+  return $output;
+}
+
+/**
+ * Collect data about all currently available icon sets.
+ *
+ * @return
+ *   Array of all available icon sets and their data.
+ * @see system_theme_data()
+ */
+function icon_iconset_data() {
+  $iconsets = _icon_iconset_data();
+
+  system_get_files_database($iconsets, 'iconset');
+
+  db_query("DELETE FROM {system} WHERE type = 'iconset'");
+
+  foreach ($iconsets as $iconset) {
+    if (!isset($iconset->owner)) {
+      $iconset->owner = '';
+    }
+
+    db_query("INSERT INTO {system} (name, owner, info, type, filename, status, throttle, bootstrap) VALUES ('%s', '%s', '%s', '%s', '%s', %d, %d, %d)", $iconset->name, $iconset->owner, serialize($iconset->info), 'iconset', $iconset->filename, isset($iconset->status) ? $iconset->status : 0, 0, 0);
+  }
+
+  return $iconsets;
+}
+
+/**
+ * Helper function to scan and collect iconset .info data.
+ *
+ * @return
+ *   An associative array of iconset information.
+ * @see _system_theme_data()
+ */
+function _icon_iconset_data() {
+  static $iconsets_info = array();
+
+  if (empty($iconsets_info)) {
+    $iconsets = icon_find_iconsets();
+
+    $defaults = icon_iconset_default();
+
+    foreach ($iconsets as $key => $iconset) {
+      $iconsets[$key]->info = drupal_parse_info_file($iconset->filename) + $defaults;
+
+      // @TODO Is this needed for icon sets?
+      drupal_alter('system_info', $iconsets[$key]->info, $iconsets[$key]);
+
+      if (!empty($iconsets[$key]->info['screenshot'])) {
+        $iconsets[$key]->info['screenshot'] = dirname($iconsets[$key]->filename) .'/'. $iconsets[$key]->info['screenshot'];
+      }
+    }
+
+    $iconsets_info = $iconsets;
+  }
+
+  return $iconsets_info;
+}
+
+/**
+ * Find all available icon sets.
+ *
+ * @return
+ *   An array of all available icon sets.
+ */
+function icon_find_iconsets() {
+  // Get a list of available generic icon sets.
+  $iconsets = drupal_system_listing('\.info$', 'icons', 'name', 0);
+
+  // Get a list of available icon sets from modules and themes.
+  $result = db_query("SELECT filename FROM {system} WHERE TYPE != '%s' AND status = 1", 'iconset');
+
+  // Add the icons from modules and themes to the list of icon sets.
+  while ($component = db_fetch_object($result)) {
+    $iconsets = array_merge($iconsets, file_scan_directory(dirname($component->filename) .'/icons', '\.info$', array('.', '..', 'CVS'), 0, FALSE, 'name'));
+  }
+
+  return $iconsets;
+}
+
+/**
+ * Prepare defaults for icon sets.
+ *
+ * @return
+ *   An array of default icon set settings.
+ * @see system_theme_default()
+ */
+function icon_iconset_default() {
+  return array(
+    'description' => '',
+    'screenshot' => 'screenshot.png',
+  );
+}
+
+/**
+ * Theme function for the icon sets overview form.
+ *
+ * @param $form
+ *   An associative array containing the structure of the form.
+ * @see theme_system_themes_form()
+ */
+function theme_icon_overview_form($form) {
+  foreach (element_children($form) as $key) {
+    if (!isset($form[$key]['info'])) {
+      continue;
+    }
+
+    $info = $form[$key]['info']['#value'];
+
+    $description = t($info['description']);
+
+    $status = drupal_render($form['status'][$key]);
+
+    $iconset = '<div class="iconset-info"><h2>'. $info['name'] .'</h2><div class="description">'. $description .'</div></div>';
+
+    $row = array();
+    $row[] = drupal_render($form[$key]['screenshot']);
+    $row[] = $iconset;
+    $row[] = array('data' => $status, 'align' => 'center');
+    $rows[] = $row;
+  }
+
+  $header = array(t('Screenshot'), t('Name'), t('Enabled'));
+  $output = theme('table', $header, $rows);
+  $output .= drupal_render($form);
+  return $output;
+}
