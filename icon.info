@@ -1,6 +1,5 @@
 ; $Id$
 name = Icon
 description = Gives you icons.
-package = Core - optional
 version = VERSION
 core = 6.x

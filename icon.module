@@ -10,6 +10,18 @@ function debug($variable) {
 }
 
 /**
+ * Implementation of hook_init().
+ */
+function icon_init() {
+  // Add icon stylesheet file, if one has been generated.
+  // @TODO Rewrite CSS files.
+  $stylesheet = variable_get('icon_stylesheet', NULL);
+  if ($stylesheet) {
+    drupal_add_css(file_directory_path() .'/css/icons/'. $stylesheet);
+  }
+}
+
+/**
  * Implementation of hook_perm().
  */
 function icon_perm() {
@@ -21,7 +33,7 @@ function icon_perm() {
  */
 function icon_theme() {
   return array(
-    'icon_overview_form' => array(
+    'icon_iconsets_form' => array(
       'arguments' => array('form' => NULL),
     ),
   );
@@ -35,24 +47,35 @@ function icon_menu() {
     'title' => 'Icons',
     'description' => 'Administer icon sets and choose which icons to use.',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('icon_overview_form'),
+    'page arguments' => array('icon_settings_form'),
     'access arguments' => array('administer icons'),
   );
-  $items['admin/build/icons/select'] = array(
-    'title' => 'Icon sets',
-    'description' => 'Enable or disable icon sets.',
+  $items['admin/build/icons/settings'] = array(
+    'title' => 'Settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
-    'weight' => -1,
+    'weight' => -10,
   );
 
-  // Add configuration pages for enabled themes.
-  include_once('includes/theme.inc');
-  foreach (list_themes() as $theme) {
+  // Icon configuration for enabled themes:
+  require_once('includes/theme.inc');
+  foreach (list_themes() as $key => $theme) {
     if ($theme->status) {
-      $items['admin/build/icons/settings/'. $theme->name] = array(
+      $items['admin/build/icons/'. $key] = array(
         'title' => $theme->info['name'],
-        'page callback' => 'icon_theme_icons',
-        'page arguments' => array($theme->name),
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('icon_iconsets_form', $key),
+        'access arguments' => array('administer icons'),
+        'type' => MENU_LOCAL_TASK,
+      );
+      $items['admin/build/icons/'. $key .'/iconsets'] = array(
+        'title' => 'Icon sets',
+        'type' => MENU_DEFAULT_LOCAL_TASK,
+        'weight' => -10,
+      );
+      $items['admin/build/icons/'. $key .'/select'] = array(
+        'title' => 'Icons',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('icon_icons_form', $key),
         'access arguments' => array('administer icons'),
         'type' => MENU_LOCAL_TASK,
       );
@@ -63,19 +86,25 @@ function icon_menu() {
 }
 
 /**
+ * Menu callback; display icon configuration for entire site.
+ */
+function icon_settings_form(&$form_state) {
+  $form['todo'] = array(
+    '#value' => t('Configuration settings that affect all themes.'),
+  );
+
+  return $form;
+}
+
+/**
  * Menu callback; displays a listing of all icon sets.
  *
  * @see system_themes_form()
  */
-function icon_overview_form() {
-  // uasort() needs to access the system_sort_modules_by_info_name() function.
-  // @TODO Would having a copy of that function here save some processing?
-  include_once(drupal_get_path('module', 'system') .'/system.admin.inc');
-
-  drupal_clear_css_cache();
+function icon_iconsets_form(&$form_state, $theme) {
   $iconsets = icon_iconset_data();
 
-  uasort($iconsets, 'system_sort_modules_by_info_name');
+  uasort($iconsets, 'icon_sort_iconsets_by_info_name');
 
   $status = array();
 
@@ -99,11 +128,17 @@ function icon_overview_form() {
     }
   }
 
+  $form['theme'] = array(
+    '#type' => 'value',
+    '#value' => $theme,
+  );
+
   $form['status'] = array(
     '#type' => 'checkboxes',
     '#options' => $options,
     '#default_value' => $status,
   );
+
   $form['buttons']['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save configuration'),
@@ -112,14 +147,15 @@ function icon_overview_form() {
     '#type' => 'submit',
     '#value' => t('Reset to defaults'),
   );
+
   return $form;
 }
 
 /**
  * Process icon_overview_form form submissions.
  */
-function icon_overview_form_submit($form, &$form_state) {
-  db_query("UPDATE {system} SET status = 0 WHERE type = 'iconset'");
+function icon_iconsets_form_submit($form, &$form_state) {
+  //db_query("DELETE FROM {iconsets} WHERE theme = 'iconset'");
   if ($form_state['values']['op'] == t('Save configuration')) {
     if (is_array($form_state['values']['status'])) {
       foreach ($form_state['values']['status'] as $key => $choice) {
@@ -134,15 +170,17 @@ function icon_overview_form_submit($form, &$form_state) {
   }
 
   drupal_set_message(t('The configuration options have been saved.'));
-  $form_state['redirect'] = 'admin/build/icons';
 }
 
 /**
  * Menu callback; displays a listing of all icons available to a theme.
  */
-function icon_theme_icons($theme_name) {
-  $output = t('UI for selecting icons for %theme here.', array('%theme' => $theme_name));
-  return $output;
+function icon_icons_form(&$form_state, $theme) {
+  $form['todo'] = array(
+    '#value' => t('UI for selecting icons for the %theme theme.', array('%theme' => $theme)),
+  );
+
+  return $form;
 }
 
 /**
@@ -155,6 +193,7 @@ function icon_theme_icons($theme_name) {
 function icon_iconset_data() {
   $iconsets = _icon_iconset_data();
 
+  // @TODO Is this needed?
   system_get_files_database($iconsets, 'iconset');
 
   db_query("DELETE FROM {system} WHERE type = 'iconset'");
@@ -171,10 +210,10 @@ function icon_iconset_data() {
 }
 
 /**
- * Helper function to scan and collect iconset .info data.
+ * Helper function to scan and collect icon set .info data.
  *
  * @return
- *   An associative array of iconset information.
+ *   An associative array of icon set information.
  * @see _system_theme_data()
  */
 function _icon_iconset_data() {
@@ -185,14 +224,14 @@ function _icon_iconset_data() {
 
     $defaults = icon_iconset_default();
 
-    foreach ($iconsets as $key => $iconset) {
-      $iconsets[$key]->info = drupal_parse_info_file($iconset->filename) + $defaults;
+    foreach ($iconsets as $iconset) {
+      $iconset->info = drupal_parse_info_file($iconset->filename) + $defaults;
 
       // @TODO Is this needed for icon sets?
-      drupal_alter('system_info', $iconsets[$key]->info, $iconsets[$key]);
+      drupal_alter('system_info', $iconset->info, $iconset);
 
-      if (!empty($iconsets[$key]->info['screenshot'])) {
-        $iconsets[$key]->info['screenshot'] = dirname($iconsets[$key]->filename) .'/'. $iconsets[$key]->info['screenshot'];
+      if (!empty($iconset->info['screenshot'])) {
+        $iconset->info['screenshot'] = dirname($iconset->filename) .'/'. $iconset->info['screenshot'];
       }
     }
 
@@ -212,15 +251,21 @@ function icon_find_iconsets() {
   // Get a list of available generic icon sets.
   $iconsets = drupal_system_listing('\.info$', 'icons', 'name', 0);
 
-  // Get a list of available icon sets from modules and themes.
-  $result = db_query("SELECT filename FROM {system} WHERE TYPE != '%s' AND status = 1", 'iconset');
-
-  // Add the icons from modules and themes to the list of icon sets.
+  // Add any icon sets from enabled system components.
+  $result = db_query("SELECT filename, name, type FROM {system} WHERE type <> '%s' AND status = 1", 'iconset');
   while ($component = db_fetch_object($result)) {
-    $iconsets = array_merge($iconsets, file_scan_directory(dirname($component->filename) .'/icons', '\.info$', array('.', '..', 'CVS'), 0, FALSE, 'name'));
+    $iconset = file_scan_directory(dirname($component->filename) .'/icons', '\.info$', array('.', '..', 'CVS'), 0, FALSE, 'name');
+    $iconsets = array_merge($iconsets, $iconset);
   }
 
   return $iconsets;
+}
+
+/**
+ * Array sorting callback; sorts icon sets by their name.
+ */
+function icon_sort_iconsets_by_info_name($a, $b) {
+  return strcasecmp($a->info['name'], $b->info['name']);
 }
 
 /**
@@ -244,7 +289,7 @@ function icon_iconset_default() {
  *   An associative array containing the structure of the form.
  * @see theme_system_themes_form()
  */
-function theme_icon_overview_form($form) {
+function theme_icon_iconsets_form($form) {
   foreach (element_children($form) as $key) {
     if (!isset($form[$key]['info'])) {
       continue;

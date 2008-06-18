@@ -1,0 +1,55 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_install().
+ */
+function icon_install() {
+  // Create tables.
+  drupal_install_schema('icon');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function icon_uninstall() {
+  // Remove installed iconsets.
+  db_query("DELETE FROM {system} WHERE type = 'iconset'");
+  // Remove tables.
+  drupal_uninstall_schema('icon');
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function icon_schema() {
+  $schema['iconsets'] = array(
+    'description' => t('Stores the states of icon sets for enabled themes.'),
+    'fields' => array(
+      'iconset' => array(
+        'description' => t("The icon set's {system}.name."),
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      'theme' => array(
+        'description' => t("The theme's {system}.name."),
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => ''),
+      'status' => array(
+        'description' => t('Boolean indicating whether or not this icon set is enabled for this theme.'),
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0),
+      'weight' => array(
+        'description' => t("The importance given to this icon set when determining which icon set to load an icon from. Equal-weighted icon sets are ordered by name."),
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0),
+    ),
+  );
+
+  return $schema;
+}
