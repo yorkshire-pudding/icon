@@ -104,6 +104,8 @@ function icon_settings_form(&$form_state) {
 function icon_iconsets_form(&$form_state, $theme) {
   $iconsets = icon_iconset_data();
 
+  icon_add_iconset_states($iconsets, $theme);
+
   uasort($iconsets, 'icon_sort_iconsets_by_info_name');
 
   $status = array();
@@ -155,13 +157,16 @@ function icon_iconsets_form(&$form_state, $theme) {
  * Process icon_overview_form form submissions.
  */
 function icon_iconsets_form_submit($form, &$form_state) {
-  //db_query("DELETE FROM {iconsets} WHERE theme = 'iconset'");
+  $theme = $form_state['values']['theme'];
+
+  // Delete all entries for this theme in {iconsets}.
+  db_query("DELETE FROM {iconsets} WHERE theme = '%s'", $theme);
+
+  // Save the states of all icon sets for this theme.
   if ($form_state['values']['op'] == t('Save configuration')) {
     if (is_array($form_state['values']['status'])) {
       foreach ($form_state['values']['status'] as $key => $choice) {
-        if ($choice) {
-          db_query("UPDATE {system} SET status = 1 WHERE type = 'iconset' and name = '%s'", $key);
-        }
+        db_query("INSERT INTO {iconsets} (iconset, theme, status) VALUES ('%s', '%s', %d)", $key, $theme, $choice ? 1 : 0);
       }
     }
   }
@@ -192,18 +197,20 @@ function icon_icons_form(&$form_state, $theme) {
  */
 function icon_iconset_data() {
   $iconsets = _icon_iconset_data();
-
-  // @TODO Is this needed?
   system_get_files_database($iconsets, 'iconset');
 
   db_query("DELETE FROM {system} WHERE type = 'iconset'");
 
   foreach ($iconsets as $iconset) {
+    // Redefine the status as a global status for the icon set.
+    $iconset->global_status = $iconset->status;
+    $iconset->status = 0;
+
     if (!isset($iconset->owner)) {
       $iconset->owner = '';
     }
 
-    db_query("INSERT INTO {system} (name, owner, info, type, filename, status, throttle, bootstrap) VALUES ('%s', '%s', '%s', '%s', '%s', %d, %d, %d)", $iconset->name, $iconset->owner, serialize($iconset->info), 'iconset', $iconset->filename, isset($iconset->status) ? $iconset->status : 0, 0, 0);
+    db_query("INSERT INTO {system} (name, owner, info, type, filename, status, throttle, bootstrap) VALUES ('%s', '%s', '%s', '%s', '%s', %d, %d, %d)", $iconset->name, $iconset->owner, serialize($iconset->info), 'iconset', $iconset->filename, $iconset->global_status, 0, 0);
   }
 
   return $iconsets;
@@ -228,7 +235,7 @@ function _icon_iconset_data() {
       $iconset->info = drupal_parse_info_file($iconset->filename) + $defaults;
 
       // @TODO Is this needed for icon sets?
-      drupal_alter('system_info', $iconset->info, $iconset);
+      //drupal_alter('system_info', $iconset->info, $iconset);
 
       if (!empty($iconset->info['screenshot'])) {
         $iconset->info['screenshot'] = dirname($iconset->filename) .'/'. $iconset->info['screenshot'];
@@ -259,6 +266,22 @@ function icon_find_iconsets() {
   }
 
   return $iconsets;
+}
+
+/**
+ * Get statuses of icon sets in a particular theme.
+ *
+ * @param $iconsets
+ *   The array of icon sets to add statuses to.
+ * @param $theme
+ *   The name of the theme for which statuses apply.
+ */
+function icon_add_iconset_states(&$iconsets, $theme) {
+  $result = db_query("SELECT iconset, status FROM {iconsets} WHERE theme = '%s'", $theme);
+  while ($item = db_fetch_object($result)) {
+    $iconsets[$item->iconset]->default_status = $iconsets[$item->iconset]->status;
+    $iconsets[$item->iconset]->status = $item->status;
+  }
 }
 
 /**
