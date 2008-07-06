@@ -11,11 +11,10 @@ function icon_init() {
   // Retrieve icons for current theme from cache (or rebuild).
   $icons = icon_get_icons($theme);
 
-  // Add icon stylesheet file, if one has been generated.
-  // TODO: Actually rewrite CSS files.
-  $stylesheet = variable_get('icon_stylesheet', NULL);
+  // Add icon stylesheet file, if one has been generated for this theme.
+  $stylesheet = variable_get('icon_'. $theme .'_stylesheet', NULL);
   if ($stylesheet) {
-    drupal_add_css(file_directory_path() .'/css/icons/'. $stylesheet);
+    drupal_add_css($stylesheet, 'theme', all, FALSE);
   }
 }
 
@@ -60,9 +59,11 @@ function icon_menu() {
 
   // Icon configuration for enabled themes:
   require_once('includes/theme.inc');
-  foreach (list_themes() as $key => $theme) {
-    if ($theme->status) {
-      $items["admin/build/icons/$key"] = array(
+  $themes = list_themes();
+  foreach ($themes as $key => $theme) {
+    // Only show themes with icons, or with base themes with icons.
+    if ($theme->status && (is_array($theme->info['icons']) || ($themes[$theme->base_theme]->status && $themes[$theme->base_theme]->info['icons']))) {
+      $items['admin/build/icons/'. $key] = array(
         'title' => $theme->info['name'],
         'page callback' => 'drupal_get_form',
         'page arguments' => array('icon_iconsets_form', $key),
@@ -80,19 +81,24 @@ function icon_menu() {
  */
 function icon_settings_form(&$form_state) {
   $form['todo'] = array(
-    '#value' => t('TODO: Remove this page.'),
+    '#value' => '<p>TODO: Figure out if this page is really needed.</p><p>For now, use the tabs above to configure themes. If you see no other tabs, you have no icons enabled themes.</p>',
   );
+
   return $form;
 }
 
 /**
  * Menu callback; displays a listing of all icon sets.
+ *
+ * @see theme_icon_iconsets_form()
  */
 function icon_iconsets_form(&$form_state, $theme) {
-  // Get all icon sets available to the specified theme.
+  $themes = list_themes();
+
+  // Fetch all icon sets available to the specified theme.
   $iconsets = icon_get_iconsets($theme);
 
-  // Get icon sets' statuses and weights for the specified theme.
+  // Fetch icon set statuses and weights for the specified theme.
   icon_get_iconset_data($iconsets, $theme);
 
   // Sort the icon sets.
@@ -169,7 +175,10 @@ function icon_iconsets_form_submit($form, &$form_state) {
   _icon_save_iconsets($iconsets, $theme);
 
   // Rebuild the cache of icons for the specified theme.
-  icon_get_icons($theme, TRUE);
+  $icons = icon_get_icons($theme, TRUE);
+
+  // Rewrite stylesheets.
+  icon_rewrite_stylesheets($icons, $theme);
 
   drupal_set_message(t('The configuration options have been saved.'));
 }
@@ -264,7 +273,7 @@ function icon_get_iconsets($theme, $reset = FALSE) {
     $result = db_query("SELECT filename, name, type, info FROM {system} WHERE type <> 'iconset' AND status = 1 ORDER BY weight DESC");
     while ($component = db_fetch_object($result)) {
 
-      // Make sure we don't get other themes' icons.
+      // Make sure we don't fetch other themes' icons.
       if ($component->type == 'theme' && $component->name != $theme && $component->name != $themes[$theme]->base_theme) {
         continue;
       }
@@ -409,7 +418,7 @@ function icon_get_icons($theme, $reset = FALSE) {
   static $icons = array();
 
   if (!isset($icons[$theme]) || $reset) {
-    if (!$reset && ($cache = cache_get("icon:$theme")) && !empty($cache->data)) {
+    if (!$reset && ($cache = cache_get('icon:'. $theme)) && !empty($cache->data)) {
       $icons[$theme] = $cache->data;
     }
     else {
@@ -429,11 +438,94 @@ function icon_get_icons($theme, $reset = FALSE) {
       }
 
       // Cache the available icons.
-      cache_set("icon:$theme", $icons[$theme]);
+      cache_set('icon:'. $theme, $icons[$theme]);
     }
   }
 
   return $icons[$theme];
+}
+
+/**
+ * Rewrite stylesheets to add icons.
+ */
+function icon_rewrite_stylesheets($icons, $theme) {
+  // Delete any existing stylesheet for this theme.
+  if ($old_stylesheet = variable_get('icon_'. $theme .'_stylesheet', NULL)) {
+    @unlink($old_stylesheet);
+  }
+
+  // Fetch stylesheets added with drupal_add_css().
+  $css = drupal_add_css();
+  $paths = array();
+  foreach ($css['all'] as $type) {
+    $paths = array_merge($paths, $type);
+  }
+
+  // Rewrite stylesheets and combine the results.
+  $style = '';
+  foreach ($paths as $path => $preprocess) {
+    $style .= _icon_rewrite_stylesheet($path, $icons, $theme);
+  }
+
+  // Save rewritten styles as .css file in files directory.
+  $filename = _icon_save_stylesheet($style, $theme);
+
+  variable_set('icon_'. $theme .'_stylesheet', $filename);
+}
+
+/**
+ * Rewrite a single stylesheet to add icons.
+ */
+function _icon_rewrite_stylesheet($file, $icons, $theme) {
+  $themes = list_themes();
+  $theme = $themes[$theme];
+  if ($theme->base_theme) {
+    $theme = $themes[$theme->base_theme];
+  }
+
+  // Load original stylesheet.
+  $style = drupal_load_stylesheet($file, TRUE);
+
+  $chunks = preg_split('/\}/', $style, -1, PREG_SPLIT_NO_EMPTY);
+
+  foreach ($chunks as $chunk) {
+    foreach ($theme->info['icons'] as $icon => $sizes) {
+      foreach ($sizes as $size => $path) {
+        if (stripos($chunk, $path)) {
+          $new_icon = base_path() . $icons[$icon][$size];
+          $selector = substr($chunk, 0, stripos($chunk, '{'));
+          $output .= "$selector {background-image: url($new_icon);}";
+        }
+      }
+    }
+  }
+
+  return $output;
+}
+
+/**
+ * Save the rewritten stylesheet to disk.
+ *
+ * @param $style
+ *   Content of the stylesheet to save.
+ * @return
+ *   Filename of the saved stylesheet relative to the directory.
+ */
+function _icon_save_stylesheet($style, $theme) {
+  // Prepare the directory.
+  $directory = file_directory_path() .'/icon';
+  file_check_directory($directory, FILE_CREATE_DIRECTORY);
+
+  // Generate a filename.
+  $filename = $directory .'/'. $theme .'-'. substr(md5($style . microtime()), 0, 8) .'.css';
+
+  // Write new stylesheet.
+  file_save_data($style, $filename, FILE_EXISTS_REPLACE);
+
+  // Set standard file permissions for webserver-generated files.
+  @chmod($file, 0664);
+
+  return $filename;
 }
 
 /**
@@ -450,25 +542,11 @@ function _icon_sort_iconsets($a, $b) {
 }
 
 /**
- * Theme function for displaying an icon.
- *
- * @param $name
- *   The name of the icon to display.
- * @param $size
- *   (optional) The desired size of the icon to display.
- * @return
- *   A string containing an image tag of the icon.
- */
-function theme_icon($name, $size = '32') {
-  global $icons;
-  return theme('image', $icons[$name][$size]);
-}
-
-/**
  * Theme function for the icon sets overview form.
  *
  * @param $form
  *   An associative array containing the structure of the form.
+ * @see icon_iconsets_form()
  */
 function theme_icon_iconsets_form($form) {
   drupal_add_tabledrag('icon-iconsets', 'order', 'sibling', 'iconset-weight');
@@ -518,4 +596,19 @@ function theme_icon_iconsets_form($form) {
   $output = theme('table', $header, $rows, array('id' => 'icon-iconsets')) . drupal_render($form);
 
   return $output;
+}
+
+/**
+ * Theme function for displaying an icon.
+ *
+ * @param $name
+ *   The name of the icon to display.
+ * @param $size
+ *   (optional) The desired size of the icon to display.
+ * @return
+ *   A string containing an image tag of the icon.
+ */
+function theme_icon($name, $size = '32') {
+  global $icons;
+  return theme('image', $icons[$name][$size]);
 }
