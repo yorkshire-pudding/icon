@@ -44,14 +44,14 @@ function icon_perm() {
  */
 function icon_menu() {
   // Global settings:
-  $items['admin/build/icons'] = array(
+  $items['admin/build/icon'] = array(
     'title' => 'Icons',
-    'description' => 'Administer icon sets and choose which icons to use.',
+    'description' => 'Administer icon sets.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('icon_settings_form'),
     'access arguments' => array('administer icons'),
   );
-  $items['admin/build/icons/settings'] = array(
+  $items['admin/build/icon/settings'] = array(
     'title' => 'Global settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -1,
@@ -63,7 +63,7 @@ function icon_menu() {
   foreach ($themes as $key => $theme) {
     // Only show themes with icons, or with base themes with icons.
     if ($theme->status && (is_array($theme->info['icons']) || ($themes[$theme->base_theme]->status && $themes[$theme->base_theme]->info['icons']))) {
-      $items['admin/build/icons/'. $key] = array(
+      $items['admin/build/icon/'. $key] = array(
         'title' => $theme->info['name'],
         'page callback' => 'drupal_get_form',
         'page arguments' => array('icon_iconsets_form', $key),
@@ -456,19 +456,25 @@ function icon_rewrite_stylesheets($icons, $theme) {
 
   // Fetch stylesheets added with drupal_add_css().
   $css = drupal_add_css();
-  $paths = array();
-  foreach ($css['all'] as $type) {
-    $paths = array_merge($paths, $type);
+
+  // Combine all style sheets.
+  $styles = '';
+  foreach ($css as $types) {
+    foreach ($types as $type) {
+      foreach ($type as $path => $preprocess) {
+        // Exclude any previously rewritten stylesheet.
+        if ($path != $old_stylesheet) {
+          $styles .= drupal_load_stylesheet($path, TRUE);
+        }
+      }
+    }
   }
 
-  // Rewrite stylesheets and combine the results.
-  $style = '';
-  foreach ($paths as $path => $preprocess) {
-    $style .= _icon_rewrite_stylesheet($path, $icons, $theme);
-  }
+  // Create a new stylesheet to override icon paths in original stylesheets.
+  $overrides = _icon_rewrite_stylesheet($styles, $icons, $theme);
 
-  // Save rewritten styles as .css file in files directory.
-  $filename = _icon_save_stylesheet($style, $theme);
+  // Save the new stylesheet in the files directory.
+  $filename = _icon_save_stylesheet($overrides, $theme);
 
   variable_set('icon_'. $theme .'_stylesheet', $filename);
 }
@@ -476,30 +482,26 @@ function icon_rewrite_stylesheets($icons, $theme) {
 /**
  * Rewrite a single stylesheet to add icons.
  */
-function _icon_rewrite_stylesheet($file, $icons, $theme) {
+function _icon_rewrite_stylesheet($styles, $icons, $theme) {
   $themes = list_themes();
   $theme = $themes[$theme];
   if ($theme->base_theme) {
     $theme = $themes[$theme->base_theme];
   }
 
-  // Load original stylesheet.
-  $style = drupal_load_stylesheet($file, TRUE);
-
-  $chunks = preg_split('/\}/', $style, -1, PREG_SPLIT_NO_EMPTY);
+  $chunks = preg_split('/\}/', $styles, -1, PREG_SPLIT_NO_EMPTY);
 
   foreach ($chunks as $chunk) {
     foreach ($theme->info['icons'] as $icon => $sizes) {
       foreach ($sizes as $size => $path) {
-        if (stripos($chunk, $path)) {
+        if (strpos($chunk, $path)) {
           $new_icon = base_path() . $icons[$icon][$size];
           $selector = substr($chunk, 0, stripos($chunk, '{'));
-          $output .= "$selector {background-image: url($new_icon);}";
+          $output .= "$selector {background-image: url($new_icon) !important;}";
         }
       }
     }
   }
-
   return $output;
 }
 
