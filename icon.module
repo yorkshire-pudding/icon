@@ -43,6 +43,7 @@ function icon_perm() {
  * Implementation of hook_menu().
  */
 function icon_menu() {
+  global $theme_key;
   require_once('includes/theme.inc');
 
   // Global settings:
@@ -62,8 +63,8 @@ function icon_menu() {
   // Icon configuration for enabled themes with icons:
   $themes = list_themes();
   foreach ($themes as $key => $theme) {
-    // Only show themes having icons, or themes with base themes having icons.
-    if ($theme->status && (is_array($theme->info['icons']) || ($themes[$theme->base_theme]->status && $themes[$theme->base_theme]->info['icons']))) {
+    // Only show enabled themes with icons, or with base themes having icons.
+    if ($theme->status && (is_array($theme->info['icons']) || is_array($themes[$theme->base_theme]->info['icons']))) {
       $items['admin/build/themes/icons/'. $key] = array(
         'title' => $theme->info['name'],
         'page callback' => 'drupal_get_form',
@@ -272,7 +273,7 @@ function icon_get_iconsets($theme, $reset = FALSE) {
     $themes = list_themes();
 
     // Fetch information about enabled system components that provide icons.
-    $result = db_query("SELECT filename, name, type, info FROM {system} WHERE type <> 'iconset' AND status = 1 ORDER BY weight DESC");
+    $result = db_query("SELECT filename, name, type, info FROM {system} WHERE type <> 'iconset' AND (status = 1 OR name = '%s') ORDER BY weight DESC", $themes[$theme]->base_theme);
     while ($component = db_fetch_object($result)) {
 
       // Make sure we don't fetch other themes' icons.
