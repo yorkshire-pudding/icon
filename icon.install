@@ -13,14 +13,18 @@ function icon_install() {
  * Implementation of hook_uninstall().
  */
 function icon_uninstall() {
-  // Remove variables.
-  db_query("DELETE FROM {variable} WHERE name LIKE 'icon_%_stylesheet'");
+  // Remove tables.
+  drupal_uninstall_schema('icon');
 
   // Remove installed iconsets.
   db_query("DELETE FROM {system} WHERE type = 'iconset'");
 
-  // Remove tables.
-  drupal_uninstall_schema('icon');
+  // Remove variables.
+  db_query("DELETE FROM {variable} WHERE name LIKE 'icon_%_stylesheet'");
+
+  // Remove cache entries.
+  cache_clear_all('icons:', 'cache', TRUE);
+  cache_clear_all('iconsets:', 'cache', TRUE);
 }
 
 /**
