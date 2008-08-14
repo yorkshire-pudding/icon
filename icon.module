@@ -94,8 +94,6 @@ function _icon_theme_with_icons($theme) {
   static $icons_theme = array();
 
   if (!isset($icons_theme[$theme])) {
-    $icons_theme[$theme] = NULL;
-
     $themes = list_themes();
     do {
       if (is_array($themes[$theme]->info['icons'])) {
@@ -140,7 +138,8 @@ function icon_get_iconsets($theme, $reset = FALSE) {
       }
 
       // Then add the theme (or the ancestor theme with icons).
-      $temp[$theme] = _icon_theme_with_icons($theme);
+      $icons_theme = _icon_theme_with_icons($theme);
+      $temp[$icons_theme->name] = $icons_theme;
 
       // Build an array of only the information we want from the components.
       $iconsets[$theme] = _icon_build_iconset_array($temp);
@@ -584,7 +583,7 @@ function _icon_save_stylesheet($style, $theme) {
  */
 function icon_iconsets($theme = NULL) {
   if (!$theme) {
-    return 'TODO: Go directly to the tab for the current theme.';
+    return 'TODO: Remove this tab, go directly to the tab for the current theme.';
   }
 
   // Fetch and sort icon sets available to the theme, resetting the cache.
