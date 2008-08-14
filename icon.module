@@ -5,16 +5,16 @@
  * Implementation of hook_init().
  */
 function icon_init() {
-  init_theme(); // TODO: Must. Do. Better.
-  global $icons, $theme;
+  init_theme(); // TODO: Get the theme name without calling init_theme().
+  global $_icons, $theme;
 
-  // Retrieve icons for current theme from cache (or rebuild).
-  $icons = icon_get_icons($theme);
+  // Retrieve icons for current theme from cache (or rebuild it).
+  $_icons = icon_get_icons($theme);
 
   // Add icon stylesheet file, if one has been generated for this theme.
   $stylesheet = variable_get('icon_'. $theme .'_stylesheet', NULL);
   if ($stylesheet) {
-    drupal_add_css($stylesheet, 'theme', all, FALSE);
+    drupal_add_css($stylesheet, 'theme', 'all', FALSE);
   }
 }
 
@@ -27,6 +27,7 @@ function icon_theme() {
       'arguments' => array('name' => NULL, 'size' => NULL),
     ),
     'icon_iconsets_form' => array(
+      'template' => 'icon-iconsets-form',
       'arguments' => array('form' => NULL),
     ),
   );
@@ -43,30 +44,24 @@ function icon_perm() {
  * Implementation of hook_menu().
  */
 function icon_menu() {
-  global $theme_key;
-
-  if (!$active_theme = variable_get('admin_theme', FALSE)) {
-    $active_theme = $theme_key;
-  }
-
   $items['admin/build/themes/icons'] = array(
     'title' => 'Icons',
-    'page arguments' => array('icon_settings_form'),
+    'page callback' => 'icon_iconsets',
     'access arguments' => array('administer icons'),
     'file' => FALSE,
     'type' => MENU_LOCAL_TASK,
   );
-  $items['admin/build/themes/icons/global'] = array(
+
+  $items['admin/build/themes/icons/settings'] = array(
     'title' => 'Global settings',
     'type' => MENU_DEFAULT_LOCAL_TASK,
-    'weight' => -1,
+    'weight' => -10,
   );
 
-  require_once('includes/theme.inc');
-  foreach (list_themes() as $theme) {
-    $items['admin/build/themes/icons/'. $theme->name] = array(
+  foreach (list_themes() as $key => $theme) {
+    $items['admin/build/themes/icons/'. $key] = array(
       'title' => $theme->info['name'],
-      'page arguments' => array('icon_iconsets_form', $theme->name),
+      'page arguments' => array($key),
       'access callback' => '_icon_themes_access',
       'access arguments' => array($theme),
       'type' => MENU_LOCAL_TASK,
@@ -78,73 +73,51 @@ function icon_menu() {
 
 /**
  * Menu item access callback - only admin or enabled themes with icons, or
- * with base themes having icons, can be accessed.
+ * with ancestor themes having icons, can be accessed.
  */
 function _icon_themes_access($theme) {
-  $themes = list_themes();
-  return user_access('administer icons') && ($theme->status || $theme->name == variable_get('admin_theme', '0')) && (is_array($theme->info['icons']) || is_array($themes[$theme->base_theme]->info['icons']));
+  if (user_access('administer icons') && ($theme->status || $theme->name == variable_get('admin_theme', '0')) && _icon_theme_with_icons($theme->name)) {
+    return TRUE;
+  }
 }
 
 /**
- * Collect an array of all icons available to the specified theme.
+ * Check if the theme has icons or ancestors with icons.
  *
  * @param $theme
- *   Name of the theme for which to get available icons.
- * @param $reset
- *   (optional) Set to TRUE to reset the cache.
+ *   Name of the theme.
  * @return
- *   An array of available icons for the specified theme.
+ *   The theme object that has icons. Returns NULL if no icons were found in
+ *   the theme itself or any ancestors.
  */
-function icon_get_icons($theme, $reset = FALSE) {
-  static $icons = array();
+function _icon_theme_with_icons($theme) {
+  static $icons_theme = array();
 
-  if (!isset($icons[$theme]) || $reset) {
-    if (!$reset && ($cache = cache_get('icons:'. $theme)) && !empty($cache->data)) {
-      $icons[$theme] = $cache->data;
-    }
-    else {
-      // Fetch icon sets.
-      $iconsets = icon_get_iconsets($theme);
+  if (!isset($icons_theme[$theme])) {
+    $icons_theme[$theme] = NULL;
 
-      // Add data and sort icon sets.
-      _icon_get_iconset_data($iconsets, $theme);
-      uasort($iconsets, '_icon_sort_iconsets');
-
-      // Combine all icons into one array.
-      // TODO: Build an array of icons based on icons declared in themes and
-      // modules.
-      $icons[$theme] = array();
-      $count = 0;
-      foreach (array_reverse($iconsets) as $key => $iconset) {
-        if ($iconset['status']) {
-          $icons[$theme] = array_merge($icons[$theme], $iconset['icons']);
-          $count++;
-        }
+    $themes = list_themes();
+    do {
+      if (is_array($themes[$theme]->info['icons'])) {
+        $icons_theme[$theme] = $themes[$theme];
+        break;
       }
-
-      // If only the theme's original icons were found, don't return any, as
-      // there wouldn't be any icons to replace them with.
-      if ($count == 1) {
-        $icons[$theme] = array();
-      }
-
-      // Cache the available icons.
-      cache_set('icons:'. $theme, $icons[$theme]);
-    }
+      $theme = $themes[$theme]->base_theme;
+    } while ($theme);
   }
 
-  return $icons[$theme];
+  return $icons_theme[$theme];
 }
 
 /**
- * Collect data about available icon sets.
+ * Collect data about icon sets available to a particular theme.
  *
  * @param $theme
- *   The theme to get available icons for.
+ *   The theme to get available icon sets for.
  * @param $reset
  *   (optional) Set to TRUE to reset the cache.
  * @return
- *   An array of icon sets and their icons.
+ *   An array of icon sets.
  */
 function icon_get_iconsets($theme, $reset = FALSE) {
   static $iconsets = array();
@@ -154,98 +127,32 @@ function icon_get_iconsets($theme, $reset = FALSE) {
       $iconsets[$theme] = $cache->data;
     }
     else {
-      $infos = array();
+      // Look for icon sets.
+      $temp = _icon_find_iconsets();
 
-      // Fetch information about standalone icon sets.
-      $standalone_iconsets = icon_find_iconsets();
-      foreach ($standalone_iconsets as $iconset) {
-        $infos[$iconset->name] = $iconset->info;
-        $iconsets[$theme][$iconset->name] = array(
-          'name' => $iconset->info['name'],
-          'description' => t($iconset->info['description']),
-          'screenshot' => $iconset->info['screenshot'],
-          'path' => dirname($iconset->filename),
-          'type' => 'iconset',
-        );
-      }
-
-      $themes = list_themes();
-
-      // Fetch information about enabled system components that provide icons.
-      $result = db_query("SELECT filename, name, type, info FROM {system} WHERE type <> 'iconset' AND (status = 1 OR name = '%s') ORDER BY weight DESC", $themes[$theme]->base_theme);
+      // Look for enabled modules that provide icons.
+      $result = db_query("SELECT filename, name, type, info FROM {system} WHERE type = 'module' AND status = 1 ORDER BY weight DESC");
       while ($component = db_fetch_object($result)) {
-
-        // Make sure we don't fetch other themes' icons.
-        if ($component->type == 'theme' && $component->name != $theme && $component->name != $themes[$theme]->base_theme) {
-          continue;
+        $component->info = unserialize($component->info);
+        if ($component->info['icons']) {
+          $temp[$component->name] = $component;
         }
-
-        // Only add components that provide icons.
-        $info = unserialize($component->info);
-        if ($info['icons']) {
-          $infos[$component->name] = $info;
-          $iconsets[$theme][$component->name] = array(
-            'name' => $info['name'],
-            'description' => t('Icons provided by %name.', array('%name' => $info['name'])),
-            'path' => dirname($component->filename),
-            'type' => $component->type,
-          );
-        }
-
       }
 
-      // Locate icon files for the discovered icon sets.
-      foreach ($iconsets[$theme] as $key => $iconset){
+      // Then add the theme (or the ancestor theme with icons).
+      $temp[$theme] = _icon_theme_with_icons($theme);
 
-        // Add paths to any icon size folders found.
-        if (is_array($infos[$key]['sizes'])) {
-          foreach ($infos[$key]['sizes'] as $size => $folder) {
-            $path = $iconset['path'] .'/'. $folder;
-            if (is_dir($path)) {
-              $iconsets[$theme][$key]['sizes'][$size] = $path;
-            }
-          }
-        }
+      // Build an array of only the information we want from the components.
+      $iconsets[$theme] = _icon_build_iconset_array($temp);
 
-        // Add paths to all icons in any provided sizes.
-        if (is_array($infos[$key]['icons'])) {
-          foreach ($infos[$key]['icons'] as $icon_name => $value) {
-
-            // The icon has been declared with specific icon sizes, so look in the
-            // specified path.
-            if (is_array($value)) {
-              foreach ($value as $size => $file) {
-                $path = $iconset['path'] .'/'. $file;
-                if (file_exists($path)) {
-                  $iconsets[$theme][$key]['icons'][$icon_name][$size] = $path;
-                }
-              }
-            }
-
-            // The icon has no specific size or path specified, so look in all
-            // specified size folders.
-            elseif ($iconsets[$theme][$key]['sizes']) {
-              foreach ($iconsets[$theme][$key]['sizes'] as $size => $size_folder) {
-                $path = $size_folder .'/'. $value;
-                $output = $path;
-                if (file_exists($path)) {
-                  $iconsets[$theme][$key]['icons'][$icon_name][$size] = $path;
-                  $output .= ' exists';
-                }
-              }
-            }
-
-          }
-        }
-
-        // Remove any icon sets whose declared icon files doesn't exist.
-        if (empty($iconsets[$theme][$key]['icons'])) {
-          unset($iconsets[$theme][$key]);
-        }
-
-        // Cache the icon sets.
-        cache_set('iconsets:'. $theme, $iconsets[$theme]);
+      // Append statuses and weights and sort icon sets.
+      foreach ($iconsets[$theme] as $type => $sets) {
+        _icon_append_iconset_states($iconsets[$theme][$type], $theme);
+        uasort($iconsets[$theme][$type], '_icon_sort_iconsets');
       }
+
+      // Cache the icon sets for this theme.
+      cache_set('iconsets:'. $theme, $iconsets[$theme]);
     }
 
   }
@@ -254,57 +161,46 @@ function icon_get_iconsets($theme, $reset = FALSE) {
 }
 
 /**
- * Find all standalone icon sets.
+ * Find all non-base icon sets.
  *
  * @return
- *   An array of icon set files.
+ *   An array of icon set files with their info data.
  */
-function icon_find_iconsets() {
-  // Find standalone icon sets' .info files.
+function _icon_find_iconsets() {
+  // Locate icon sets' .info files.
   $iconsets = drupal_system_listing('\.info$', 'icons', 'name', 0);
 
-  // Extract current icon sets from database.
+  // Update the current status of icon sets in the database.
   system_get_files_database($iconsets, 'iconsets');
-
-  // Set defaults for icon sets.
-  $defaults = array(
-    'name' => '',
-    'description' => '',
-    'screenshot' => 'screenshot.png',
-  );
 
   // Add .info file's content to each icon set.
   foreach ($iconsets as $key => $iconset) {
-    $iconsets[$key]->info = drupal_parse_info_file($iconset->filename) + $defaults;
+    $iconsets[$key]->type = 'iconset';
+    $iconsets[$key]->info = drupal_parse_info_file($iconset->filename);
   }
 
+  // Delete or update icon sets that have been removed or changed.
   $result = db_query("SELECT filename, name, info FROM {system} WHERE type = 'iconset'");
   while ($item = db_fetch_object($result)) {
-    // Flag the icon set as processed.
-    $iconsets[$item->name]->processed = TRUE;
-
-    // Serialize the .info data.
-    $info = serialize($iconsets[$item->name]->info);
-
     if (($iconsets[$item->name] === NULL) || !file_exists($item->filename)) {
-      // Delete {system} and array entries if the icon set no longer exists.
       db_query("DELETE FROM {system} WHERE name = '%s'", $item->name);
       unset($iconsets[$item->name]);
     }
-    elseif ($item->info != $info) {
-      // Update the {system} entry if its info has changed.
-      db_query("UPDATE {system} SET info = '%s' WHERE name = '%s'", $info);
+    elseif ($item->info != $iconsets[$item->name]->info) {
+      db_query("UPDATE {system} SET info = '%s' WHERE name = '%s'", serialize($iconsets[$item->name]->info));
     }
+
+    // Flag the icon set as processed, meaning it was found in the database.
+    $iconsets[$item->name]->processed = TRUE;
   }
 
+  // Icon sets that were not found in the database should be saved.
   foreach ($iconsets as $key => $iconset) {
-    if ($iconset->processed) {
-      // The icon set has already been processed, so remove the flag.
-      unset($iconsets[$key]->processed);
+    if (!$iconset->processed) {
+      db_query("INSERT INTO {system} (name, owner, info, type, filename, status, throttle, bootstrap) VALUES ('%s', '%s', '%s', '%s', '%s', %d, %d, %d)", $iconset->name, '', serialize($iconset->info), 'iconset', $iconset->filename, $iconset->status, 0, 0);
     }
     else {
-      // Any icon sets that have not been processed should be stored.
-      db_query("INSERT INTO {system} (name, owner, info, type, filename, status, throttle, bootstrap) VALUES ('%s', '%s', '%s', '%s', '%s', %d, %d, %d)", $iconset->name, '', serialize($iconset->info), 'iconset', $iconset->filename, $iconset->status, 0, 0);
+      unset($iconsets[$key]->processed); // Just cleaning up...
     }
   }
 
@@ -312,26 +208,90 @@ function icon_find_iconsets() {
 }
 
 /**
- * Adds the statuses and weights to icon sets for a particular theme.
+ * Build an array of icon sets based on information from their files.
+ *
+ * @param $components
+ *   Components to build an array from.
+ * @return
+ *   An array of icon sets.
+ */
+function _icon_build_iconset_array($components) {
+  $iconsets = array();
+
+  // Set defaults.
+  $defaults = array(
+    'name' => '',
+    'description' => '',
+    'screenshot' => 'screenshot.png',
+  );
+
+  // Extract the information we want from the components.
+  foreach ($components as $key => $value) {
+    if (!$value) {
+      continue;
+    }
+
+    $value->info = $value->info + $defaults;
+
+    // Installed icon sets are 'iconset', module and theme icons are 'base'.
+    $type = $value->type == 'iconset' ? 'iconset' : 'base';
+
+    $iconsets[$type][$key] = array(
+      'path' => dirname($value->filename),
+      'name' => $value->info['name'],
+      'description' => $value->info['description'],
+      'screenshot' => $value->info['screenshot'],
+      'type' => $value->type,
+    );
+
+    // Give screenshot a proper path (has already been done for themes).
+    if ($value->type != 'theme') {
+      $iconsets[$type][$key]['screenshot'] = $iconsets[$type][$key]['path'] .'/'. $iconsets[$type][$key]['screenshot'];
+    }
+
+    // Verify that the screenshot actually exists.
+    if (!file_exists($iconsets[$type][$key]['screenshot'])) {
+      $iconsets[$type][$key]['screenshot'] = NULL;
+    }
+
+    // Give base icons a better description.
+    if ($type == 'base') {
+      $iconsets[$type][$key]['description'] = t('Icons provided by the %component !type.', array('%component' => $value->info['name'], '!type' => $value->type));
+    }
+  }
+
+  return $iconsets;
+}
+
+/**
+ * Append statuses and weights to icon sets for a particular theme.
  *
  * @param $iconsets
- *   An array of icon sets to check.
+ *   An array of icon sets to add statuses and weights to.
  * @param $theme
- *   The theme to check for status against.
+ *   The theme to check for status and weight against.
  */
-function _icon_get_iconset_data(&$iconsets, $theme) {
+function _icon_append_iconset_states(&$iconsets, $theme) {
+  // Fetch existing values from the database.
   $result = db_query("SELECT iconset, status, weight FROM {iconsets} WHERE theme = '%s'", $theme);
   while ($item = db_fetch_object($result)) {
     $data[$item->iconset] = $item;
   }
 
-  foreach ($iconsets as $key => $iconset) {
+  // Define default weights.
+  $default_weights = array('iconset' => 0, 'theme' => 1, 'module' => 2);
+
+  foreach ($iconsets as $key => $value) {
+    // If the icon set hasn't been saved for this theme, set its defaults.
+    // Module and theme sets are enabled by default and cannot be disabled.
     if (!isset($data[$key])) {
-      $data[$key]->weight = 0;
       $data[$key]->status = ($iconsets[$key]['type'] == 'iconset' ? 0 : 1);
+      $data[$key]->weight = $default_weights[$iconsets[$key]['type']];
     }
-    $iconsets[$key]['weight'] = $data[$key]->weight;
+
+    // Append status and weight to the icon set's array item.
     $iconsets[$key]['status'] = ($iconsets[$key]['type'] == 'iconset' ? $data[$key]->status : 1);
+    $iconsets[$key]['weight'] = $data[$key]->weight;
   }
 }
 
@@ -343,20 +303,19 @@ function _icon_get_iconset_data(&$iconsets, $theme) {
  * @param $theme
  *   The theme for which to save statuses.
  */
-function _icon_save_iconsets($iconsets, $theme) {
+function _icon_save_iconset_states($theme, $iconsets = array()) {
   $result = db_query("SELECT iconset, status, weight FROM {iconsets} WHERE theme = '%s'", $theme);
 
   while ($item = db_fetch_object($result)) {
+    // Delete or update icon sets that have been removed or changed.
     if ($iconsets[$item->iconset] === NULL) {
-      // Delete the icon set from the database if it no longer exists.
       db_query("DELETE FROM {iconsets} WHERE iconset = '%s' AND theme = '%s'", $item->iconset, $theme);
     }
     elseif ($iconsets[$item->iconset]['status'] != $item->status || $iconsets[$item->iconset]['weight'] != $item->weight) {
-      // Update the icon set if its status or weight has changed.
       db_query("UPDATE {iconsets} SET status = %d, weight = %d WHERE iconset = '%s' AND theme = '%s'", $iconsets[$item->iconset]['status'], $iconsets[$item->iconset]['weight'], $item->iconset, $theme);
     }
 
-    // Remove the processed icon set from the array.
+    // Remove processed icon sets from the array.
     unset($iconsets[$item->iconset]);
   }
 
@@ -367,11 +326,154 @@ function _icon_save_iconsets($iconsets, $theme) {
 }
 
 /**
+ * Get icons available to the specified theme.
+ *
+ * @param $theme
+ *   Name of the theme for which to get available icons.
+ */
+function icon_get_icons($theme, $reset = FALSE) {
+  static $icons = array();
+
+  if (!isset($icons[$theme]) || $reset) {
+    if (!$reset && ($cache = cache_get('icons:'. $theme)) && !empty($cache->data)) {
+      // Fetch icons from cache.
+      $icons[$theme] = $cache->data;
+    }
+    else {
+      // Collect available icons, resetting the cache.
+      $icons[$theme] = element_children(_icon_get_icons($theme));
+    }
+  }
+
+  return $icons[$theme];
+}
+
+/**
+ * Collect icons available to the specified theme.
+ *
+ * @param $theme
+ *   Name of the theme for which to get available icons.
+ * @param $iconsets
+ *   (optional) Icon sets to get available icons from. If left empty, icon
+ *   sets available to the specified theme will be fetched.
+ * @return
+ *   An array of icons for the specified theme. Original => replacement icon
+ *   pairs are provided in #rewrites.
+ */
+function _icon_get_icons($theme, $iconsets = array()) {
+  $base_icons = $icons = array();
+  $num_iconset = 0;
+
+  // If no icon sets were provided, fetch all icon sets available to the
+  // theme, resetting the cache.
+  if (empty($iconsets)) {
+    $iconsets = icon_get_iconsets($theme, TRUE);
+  }
+
+  foreach ($iconsets as $type => $sets) {
+
+    // Sort icon sets, as they may have been rearranged by the user.
+    uasort($iconsets[$type], '_icon_sort_iconsets');
+
+    // Reverse the non-base icon sets.
+    if ($type == 'iconset') {
+      $iconsets[$type] = array_reverse($iconsets[$type]);
+    }
+
+    // Fetch all available icons from the icon sets.
+    _icon_append_icons($iconsets[$type]);
+
+    foreach ($iconsets[$type] as $key => $iconset) {
+      if ($iconset['icons']) {
+
+        // Merge base icons into a separate array and count other icon sets.
+        if ($type == 'base') {
+          $base_icons += $iconset['icons'];
+        } else {
+          $num_iconset++;
+        }
+
+        // Build the $icons array, overriding the base icons and storing
+        // original => replacement pairs in '#rewrites'.
+        foreach ($iconset['icons'] as $icon => $sizes) {
+          foreach ($sizes as $size => $file) {
+            $original = $base_icons[$icon][$size];
+            if (!empty($original)) {
+              $icons[$icon][$size] = $iconset['path'] .'/'. $file;
+              $icons['#rewrites'][$original] = $iconset['path'] .'/'. $file;
+            }
+          }
+        }
+
+      }
+    }
+
+  }
+
+  // Don't return only base icons.
+  if ($num_iconset == 0) {
+    $icons = array();
+  }
+
+  // Cache the icons (without the rewrites).
+  cache_set('icons:'. $theme, element_children($icons));
+
+  return $icons;
+}
+
+/**
+ * Append icons to icon sets.
+ *
+ * @param $iconsets
+ *   Icon sets to append icons to.
+ */
+function _icon_append_icons(&$iconsets) {
+  foreach ($iconsets as $key => $iconset) {
+    $icons = array();
+
+    // We don't need icons from disabled non-base sets.
+    if ($iconsets[$key]['type'] == 'iconset' && $iconsets[$key]['status'] == 0) {
+      continue;
+    }
+
+    // Fetch the component's .info data.
+    $iconsets[$key]['info'] = drupal_parse_info_file($iconsets[$key]['path'] .'/'. $key .'.info');
+
+    if (is_array($iconsets[$key]['info']['icons'])) {
+      foreach ($iconsets[$key]['info']['icons'] as $icon => $value) {
+
+        // If the icon has been declared with specific icon sizes, look for
+        // files in the specified paths.
+        if (is_array($value)) {
+          foreach ($value as $size => $file) {
+            if (file_exists($iconsets[$key]['path'] .'/'. $file)) {
+              $iconsets[$key]['icons'][$icon][$size] = $file;
+            }
+          }
+        }
+
+        // If the icon has no specific size or path specified, look for files
+        // in all specified size folders.
+        elseif ($iconsets[$key]['info']['sizes']) {
+          foreach ($iconsets[$key]['info']['sizes'] as $size => $folder) {
+            if (file_exists($iconsets[$key]['path'] .'/'. $folder .'/'. $value)) {
+              $iconsets[$key]['icons'][$icon][$size] = $folder .'/'. $value;
+            }
+          }
+        }
+
+      }
+    }
+
+  }
+}
+
+/**
  * Array sorting callback; sorts icon sets.
  */
 function _icon_sort_iconsets($a, $b) {
+  // Sort by weight, then name.
   if ($a['weight'] == $b['weight']) {
-    // Sort by name if equal weights.
     return strcasecmp($a['name'], $b['name']);
   }
   else {
@@ -380,68 +482,75 @@ function _icon_sort_iconsets($a, $b) {
 }
 
 /**
- * Rewrite stylesheets to add icons.
+ * Rewrite stylesheets to replace icons.
+ *
+ * @param $theme
+ *   The theme for which to rewrite stylesheets.
+ * @param $icons
+ *   Icons to replace the original ones.
  */
-function icon_rewrite_stylesheets($icons, $theme) {
-  // Delete any existing rewritten stylesheet.
+function icon_rewrite_stylesheets($theme, $icons) {
+  // First delete any existing rewritten stylesheet.
   if ($old_stylesheet = variable_get('icon_'. $theme .'_stylesheet', NULL)) {
     @unlink($old_stylesheet);
     variable_del('icon_'. $theme .'_stylesheet');
   }
 
   // Only rewrite stylesheets if there are icons to replace.
-  if (count($icons)) {
+  if (empty($icons['#rewrites'])) {
+    return;
+  }
 
-    // Fetch stylesheets added with drupal_add_css().
-    $css = drupal_add_css();
+  // Fetch stylesheets added with drupal_add_css().
+  $css = drupal_add_css();
 
-    // Combine and optimize all stylesheets into a single variable.
-    $styles = '';
-    foreach ($css as $types) {
-      foreach ($types as $type) {
-        foreach ($type as $path => $preprocess) {
-          // Exclude any previously rewritten stylesheet.
-          if ($path != $old_stylesheet) {
-            $styles .= drupal_load_stylesheet($path, TRUE);
-          }
+  // Merge all stylesheets (optimized) into a single variable.
+  $styles = '';
+  foreach ($css as $types) {
+    foreach ($types as $type) {
+      foreach ($type as $path => $preprocess) {
+        // Exclude any previously rewritten stylesheet.
+        if ($path != $old_stylesheet) {
+          $styles .= drupal_load_stylesheet($path, TRUE);
         }
       }
     }
-
-    // Create a new stylesheet to override icon paths in original stylesheets.
-    $overrides = _icon_rewrite_stylesheet($styles, $icons, $theme);
-
-    // Save the new stylesheet in the files directory.
-    $filename = _icon_save_stylesheet($overrides, $theme);
-
-    variable_set('icon_'. $theme .'_stylesheet', $filename);
-
   }
+
+  // Create a new stylesheet, rewriting icon paths in original styles.
+  $rewritten = _icon_rewrite_stylesheet($styles, $icons);
+
+  // Save the new stylesheet in the files directory.
+  $filename = _icon_save_stylesheet($rewritten, $theme);
+
+  variable_set('icon_'. $theme .'_stylesheet', $filename);
 }
 
 /**
- * Rewrite a single stylesheet to add icons.
+ * Rewrite a single stylesheet, replacing icons.
+ *
+ * @param $styles
+ *   A stylesheet's file contents.
+ * @param $icons
+ *   Icons to replace the original ones.
+ * @return
+ *   A rewritten stylesheet.
  */
-function _icon_rewrite_stylesheet($styles, $icons, $theme) {
-  $themes = list_themes();
-  $theme = $themes[$theme];
-  if ($theme->base_theme) {
-    $theme = $themes[$theme->base_theme];
-  }
-
+function _icon_rewrite_stylesheet($styles, $icons) {
+  // Split the stylesheet into chunks using the '}' delimeter.
   $chunks = preg_split('/\}/', $styles, -1, PREG_SPLIT_NO_EMPTY);
 
+  // Find icon paths and replace them with icons from the selected icon sets.
   foreach ($chunks as $chunk) {
-    foreach ($theme->info['icons'] as $icon => $sizes) {
-      foreach ($sizes as $size => $path) {
-        if (strpos($chunk, $path)) {
-          $new_icon = base_path() . $icons[$icon][$size];
-          $selector = substr($chunk, 0, stripos($chunk, '{'));
-          $output .= "$selector {background-image: url($new_icon) !important;}";
-        }
+    foreach ($icons['#rewrites'] as $original => $replace) {
+      if (strpos($chunk, $original)) {
+        $new_icon = base_path() . $replace;
+        $selector = substr($chunk, 0, stripos($chunk, '{'));
+        $output .= "$selector{background-image:url($new_icon)!important;}";
       }
     }
   }
+
   return $output;
 }
 
@@ -471,78 +580,81 @@ function _icon_save_stylesheet($style, $theme) {
 }
 
 /**
- * Menu callback; displays configuration options for all themes.
+ * Menu callback for admin/build/themes/icons.
  */
-function icon_settings_form(&$form_state) {
-  $form['todo'] = array(
-    '#value' => '<p>Use the tabs above to configure icons for your icons enabled themes. If you see no tabs under "Icons", you have no icons enabled themes.</p>' .
-                '<p>TODO: Skip this page and show the tab for the current theme instead.</p>',
-  );
+function icon_iconsets($theme = NULL) {
+  if (!$theme) {
+    return 'TODO: Go directly to the tab for the current theme.';
+  }
 
-  return $form;
+  // Fetch and sort icon sets available to the theme, resetting the cache.
+  $iconsets = icon_get_iconsets($theme, TRUE);
+  foreach ($iconsets as $type => $sets) {
+    uasort($iconsets[$type], '_icon_sort_iconsets');
+  }
+
+  return drupal_get_form('icon_iconsets_form', $iconsets, $theme);
 }
 
 /**
- * Menu callback; displays a listing of all icon sets.
+ * Generate icon sets administration form.
  *
- * @see theme_icon_iconsets_form()
+ * @ingroup forms
+ * @see icon_iconsets_form_submit()
+ * @see template_preprocess_icon_iconsets_form()
  */
-function icon_iconsets_form(&$form_state, $theme) {
-  $themes = list_themes();
+function icon_iconsets_form(&$form_state, $iconsets, $theme) {
+  // Add CSS.
+  drupal_add_css(drupal_get_path('module', 'icon') .'/icon.css', 'module', 'all', FALSE);
 
-  // Fetch all icon sets available to the specified theme.
-  $iconsets = icon_get_iconsets($theme, TRUE);
-
-  // Fetch icon set statuses and weights for the specified theme.
-  _icon_get_iconset_data($iconsets, $theme);
-
-  // Sort the icon sets.
-  uasort($iconsets, '_icon_sort_iconsets');
-
-  $form = array('#tree' => TRUE);
+  $form = array(
+    '#tree' => TRUE,
+  );
 
   $form['theme'] = array(
     '#type' => 'value',
     '#value' => $theme,
   );
 
-  // Add form elements for all available icon sets:
-  foreach ($iconsets as $key => $iconset) {
-    $screenshot = $iconset['path'] .'/'. $iconset['screenshot'];
-    if ($iconset['screenshot'] && file_exists($screenshot)) {
-      $form[$key]['screenshot']['#value'] = theme('image', $screenshot, t('Screenshot for %iconset icon set', array('%iconset' => $iconset['name'])), '', array('class' => 'screenshot'), FALSE);
+  // Add form elements for all available icon sets.
+  foreach ($iconsets as $type => $sets) {
+    foreach ($sets as $key => $data) {
+      $form[$key]['iconset'] = array(
+        '#type' => 'value',
+        '#value' => $data,
+      );
+
+      $form[$key]['type'] = array(
+        '#type' => 'value',
+        '#value' => $type,
+      );
+
+      $form[$key]['status'] = array(
+        '#type' => 'checkbox',
+        '#default_value' => isset($form_state[$key]['status']) ? $form_state[$key]['status'] : $data['status'],
+      );
+
+      if ($type == 'base') {
+        $form[$key]['status']['#attributes']['disabled'] = 'disabled';
+      }
+
+      $form[$key]['weight'] = array(
+        '#type' => 'weight',
+        '#delta' => 10,
+        '#default_value' => isset($form_state[$key]['weight']) ? $form_state[$key]['weight'] : $data['weight'],
+        '#attributes' => array('class' => 'iconset-weight iconset-weight-'. $type),
+      );
     }
-    else {
-      $form[$key]['screenshot']['#value'] = t('no screenshot');
-    }
-
-    $form[$key]['iconset'] = array(
-      '#type' => 'value',
-      '#value' => $iconset,
-    );
-
-    $form[$key]['status'] = array(
-      '#type' => 'checkbox',
-      '#default_value' => isset($form_state[$key]['status']) ? $form_state[$key]['status'] : $iconset['status'],
-    );
-
-    $form[$key]['weight'] = array(
-      '#type' => 'weight',
-      '#delta' => 10,
-      '#default_value' => isset($form_state[$key]['weight']) ? $form_state[$key]['weight'] : $iconset['weight'],
-    );
   }
 
-  if (count($iconsets)) {
-    $form['buttons']['submit'] = array(
-      '#type' => 'submit',
-      '#value' => t('Save configuration'),
-    );
-    $form['buttons']['reset'] = array(
-      '#type' => 'submit',
-      '#value' => t('Reset to defaults'),
-    );
-  }
+  $form['buttons']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save configuration'),
+  );
+  $form['buttons']['reset'] = array(
+    '#type' => 'submit',
+    '#value' => t('Reset to defaults'),
+  );
 
   return $form;
 }
@@ -553,99 +665,91 @@ function icon_iconsets_form(&$form_state, $theme) {
 function icon_iconsets_form_submit($form, &$form_state) {
   $theme = $form_state['values']['theme'];
 
-  // Build an array of icon sets with their statuses and weights.
-  $iconsets = array();
+  // Default to empty arrays, so that functions further down will reset if
+  // 'Reset to defaults' button was clicked.
+  $iconsets = array('base' => array(), 'iconset' => array());
+  $icons = array();
+
+  // Save icon sets, rebuild icon cache and rewrite stylesheets if
+  // 'Save configuration' button was clicked.
   if ($form_state['values']['op'] == t('Save configuration')) {
     foreach ($form_state['values'] as $key => $value) {
-      if (is_array($form_state['values'][$key]['iconset'])) {
-          $iconsets[$key] = array(
-            'status' => $form_state['values'][$key]['status'],
-            'weight' => $form_state['values'][$key]['weight'],
-          );
+      if (is_array($value['iconset'])) {
+        $type = $value['type'];
+
+        // Extract the iconset from the form.
+        $iconsets[$type][$key] = $value['iconset'];
+        $iconsets[$type][$key]['weight'] = $value['weight'];
+
+        // Make sure base sets are always enabled.
+        $iconsets[$type][$key]['status'] = ($type == 'base' ? 1 : $value['status']);
       }
     }
+
+    // Fetch icons available to the theme.
+    $icons = _icon_get_icons($theme, $iconsets);
   }
 
-  // Save changes to the icon sets.
-  _icon_save_iconsets($iconsets, $theme);
-
-  // Get icons and rebuild the icon cache for the specified theme.
-  $icons = icon_get_icons($theme, TRUE);
+  // Save statuses and weights of icon sets for this theme.
+  _icon_save_iconset_states($theme, $iconsets['base'] + $iconsets['iconset']);
 
   // Rewrite stylesheets, replacing the original icons.
-  icon_rewrite_stylesheets($icons, $theme);
+  icon_rewrite_stylesheets($theme, $icons);
 
   drupal_set_message(t('The configuration options have been saved.'));
 }
 
 /**
- * Theme function for the icon sets overview form.
+ * Process variables for icon-iconsets-form.tpl.php.
  *
- * @param $form
- *   An associative array containing the structure of the form.
- * @see icon_iconsets_form()
+ * The $variables array contains the following arguments:
+ * - $form
+ *
+ * @see icon-iconsets-form.tpl.php
+ * @see theme_icon_iconsets_form()
  */
-function theme_icon_iconsets_form($form) {
-  drupal_add_tabledrag('icon-iconsets', 'order', 'sibling', 'iconset-weight');
-
-  $header = array(
-    t('Screenshot'),
-    t('Name'),
-    array('data' => t('Enabled'), 'class' => 'checkbox'),
-    t('Weight')
+function template_preprocess_icon_iconsets_form(&$variables) {
+  $variables['types'] = array(
+    'base' => t('Theme and module icons'),
+    'iconset' => t('Icon sets'),
   );
 
-  $rows = array();
-  foreach (element_children($form) as $key) {
-    // Only look for icon sets.
-    if (!isset($form[$key]['iconset'])) {
-      continue;
+  foreach (element_children($variables['form']) as $i) {
+    $iconset = &$variables['form'][$i];
+
+    // Only take form elements that are icon sets.
+    if (isset($iconset['iconset'])) {
+      $type = $iconset['type']['#value'];
+      $data = $iconset['iconset']['#value'];
+
+      // Set special classes needed for table drag and drop.
+      $variables['form'][$i]['weight']['#attributes']['class'] = 'iconset-weight iconset-weight-'. $type;
+
+      // Render form elements and make them available as variables.
+      $variables['iconsets'][$type][$i]->screenshot = $data['screenshot'] ? theme('image', $data['screenshot'], t('Screenshot for %iconset icon set', array('%iconset' => $data['name'])), '', array('class' => 'screenshot'), FALSE) : t('no screenshot');
+      $variables['iconsets'][$type][$i]->name = $data['name'];
+      $variables['iconsets'][$type][$i]->description = $data['description'];
+      $variables['iconsets'][$type][$i]->status_checkbox = drupal_render($iconset['status']);
+      $variables['iconsets'][$type][$i]->weight_select = drupal_render($iconset['weight']);
     }
-
-    $element = &$form[$key];
-    $iconset = &$element['iconset']['#value'];
-
-    // Add special classes to be used with tabledrag.js.
-    $element['weight']['#attributes']['class'] .= 'iconset-weight';
-
-    // Make it only possible to check/uncheck standalone icon sets.
-    if ($iconset['type'] != 'iconset') {
-      $element['status']['#attributes']['disabled'] = 'disabled';
-      $element['status']['#value'] = '1';
-    }
-
-    // Style icon set info.
-    $info = '<div class="iconset-info"><h2>'. $iconset['name'] .'</h2><div class="description">'. $iconset['description'] .'</div></div>';
-
-    // Build row.
-    $row = array();
-    $row[] = drupal_render($element['screenshot']);
-    $row[] = $info;
-    $row[] = array('data' => drupal_render($element['status']), 'class' => 'checkbox', 'align' => 'center');
-    $row[] = drupal_render($element['weight']);
-    $rows[] = array('data' => $row, 'class' => 'draggable');
-  }
-  if (empty($rows)) {
-    $rows[] = array(array('data' => t('No icon sets available.'), 'colspan' => '4'));
   }
 
-  // Build the table and render the form.
-  $output = theme('table', $header, $rows, array('id' => 'icon-iconsets')) . drupal_render($form);
-
-  return $output;
+  // This also passes on important hidden form elements.
+  $variables['buttons'] = drupal_render($variables['form']);
 }
 
 /**
  * Theme function for displaying an icon.
  *
+ * @ingroup themeable
  * @param $name
  *   The name of the icon to display.
  * @param $size
- *   (optional) The desired size of the icon to display.
+ *   (optional) The desired pixel size of the icon to display. Defaults to '32'.
  * @return
  *   A string containing an image tag of the icon.
  */
 function theme_icon($name, $size = '32') {
-  global $icons;
-  return theme('image', $icons[$name][$size]);
+  global $_icons;
+  return theme('image', $_icons[$name][$size]);
 }

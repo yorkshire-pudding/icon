@@ -28,7 +28,8 @@ In addition to this module, you will need the following to give it a try:
  * An icon enabled theme. Download a modified version of Garland here:
    http://kreativmango.no/joakim/sites/default/files/garland_icons.zip
 
- * An icon set. Download Aesthetica here:
+ * An icon set or two. Download Aesthetica and Crystal here:
+   http://kreativmango.no/joakim/sites/default/files/aesthetica.zip
    http://kreativmango.no/joakim/sites/default/files/aesthetica.zip
 
 With the above files downloaded, do the following:

@@ -1,5 +1,5 @@
 ; $Id$
 name = Icon
-description = Gives you icons.
+description = Allows icon sets to be installed.
 version = VERSION
 core = 6.x
