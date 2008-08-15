@@ -181,16 +181,14 @@ function _icon_find_iconsets() {
   // Delete or update icon sets that have been removed or changed.
   $result = db_query("SELECT filename, name, info FROM {system} WHERE type = 'iconset'");
   while ($item = db_fetch_object($result)) {
-    if (($iconsets[$item->name] === NULL) || !file_exists($item->filename)) {
+    if (!isset($iconsets[$item->name]) || !file_exists($item->filename)) {
       db_query("DELETE FROM {system} WHERE name = '%s'", $item->name);
       unset($iconsets[$item->name]);
     }
     elseif ($item->info != $iconsets[$item->name]->info) {
       db_query("UPDATE {system} SET info = '%s' WHERE name = '%s'", serialize($iconsets[$item->name]->info));
+      $iconsets[$item->name]->processed = TRUE;
     }
-
-    // Flag the icon set as processed, meaning it was found in the database.
-    $iconsets[$item->name]->processed = TRUE;
   }
 
   // Icon sets that were not found in the database should be saved.
@@ -199,7 +197,7 @@ function _icon_find_iconsets() {
       db_query("INSERT INTO {system} (name, owner, info, type, filename, status, throttle, bootstrap) VALUES ('%s', '%s', '%s', '%s', '%s', %d, %d, %d)", $iconset->name, '', serialize($iconset->info), 'iconset', $iconset->filename, $iconset->status, 0, 0);
     }
     else {
-      unset($iconsets[$key]->processed); // Just cleaning up...
+      unset($iconsets[$key]->processed); // Cleaning up...
     }
   }
 
@@ -226,10 +224,7 @@ function _icon_build_iconset_array($components) {
 
   // Extract the information we want from the components.
   foreach ($components as $key => $value) {
-    if (!$value) {
-      continue;
-    }
-
+    if (!isset($value->info)) continue;
     $value->info = $value->info + $defaults;
 
     // Installed icon sets are 'iconset', module and theme icons are 'base'.
@@ -709,8 +704,8 @@ function icon_iconsets_form_submit($form, &$form_state) {
  */
 function template_preprocess_icon_iconsets_form(&$variables) {
   $variables['types'] = array(
-    'base' => t('Theme and module icons'),
-    'iconset' => t('Icon sets'),
+    'base' => t('Original theme and module icons'),
+    'iconset' => t('Alternative icons from icon sets'),
   );
 
   foreach (element_children($variables['form']) as $i) {
