@@ -539,7 +539,7 @@ function _icon_rewrite_stylesheet($styles, $icons) {
     foreach ($icons['#rewrites'] as $original => $replace) {
       if (strpos($chunk, $original)) {
         $new_icon = base_path() . $replace;
-        $selector = substr($chunk, 0, stripos($chunk, '{'));
+        $selector = substr($chunk, 0, strpos($chunk, '{'));
         $output .= "$selector{background-image:url($new_icon)!important;}";
       }
     }
