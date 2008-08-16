@@ -704,8 +704,8 @@ function icon_iconsets_form_submit($form, &$form_state) {
  */
 function template_preprocess_icon_iconsets_form(&$variables) {
   $variables['types'] = array(
-    'base' => t('Original theme and module icons'),
-    'iconset' => t('Alternative icons from icon sets'),
+    'base' => t('Original icons'),
+    'iconset' => t('Icons from icon sets'),
   );
 
   foreach (element_children($variables['form']) as $i) {
