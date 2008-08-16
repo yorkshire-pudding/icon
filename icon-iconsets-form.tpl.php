@@ -2,26 +2,23 @@
 // $Id$
 
 /**
- * @file block-admin-display-form.tpl.php
- * Default theme implementation to configure blocks.
+ * @file icon-iconsets-form.tpl.php
+ * Default theme implementation to configure icon sets.
  *
  * Available variables:
  * - $iconsets: An array of icon sets organized by type.
  * - $types: Names of icon set types.
+ * - $buttons: Submit and Reset buttons as well as hidden form elements.
  *
- * Each $block_listing[$region] contains an array of blocks for that region.
+ * Each $iconsets[$type] contains.
+ * - $screenshot: Its screenshot (or 'no screenshot' text).
+ * - $name: The name of the icon set.
+ * - $description: Its description.
+ * - $status_checkbox: A checkbox for enabling/disabling the icon set.
+ * - $weight_select: Drop-down menu for setting weights.
  *
- * Each $data in $block_listing[$region] contains:
- * - $data->region_title: Region title for the listed block.
- * - $data->block_title: Block title.
- * - $data->region_select: Drop-down menu for assigning a region.
- * - $data->weight_select: Drop-down menu for setting weights.
- * - $data->throttle_check: Checkbox to enable throttling.
- * - $data->configure_link: Block configuration link.
- * - $data->delete_link: For deleting user added blocks.
- *
- * @see template_preprocess_block_admin_display_form()
- * @see theme_block_admin_display()
+ * @see template_preprocess_icon_iconsets_form()
+ * @see theme_icon_iconsets_form()
  */
 ?>
 <?php
