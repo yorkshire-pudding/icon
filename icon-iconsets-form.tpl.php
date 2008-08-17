@@ -26,7 +26,6 @@
   drupal_add_js('misc/tableheader.js');
   drupal_add_js(drupal_get_path('module', 'icon') .'/icon.js');
   foreach ($iconsets as $type => $sets) {
-    // TODO: Restrict dragging of an item to within its section.
     drupal_add_tabledrag('iconsets', 'order', 'sibling', 'iconset-weight', 'iconset-weight-'. $type);
   }
 ?>
@@ -42,7 +41,7 @@
   <tbody>
   <?php $row = 0; ?>
   <?php foreach ($iconsets as $type => $sets): ?>
-    <tr class="iconset-type type-<?php print $type; ?>">
+    <tr class="type type-<?php print $type; ?>">
       <td colspan="4" class="region"><?php print $types[$type]; ?></td>
     </tr>
     <tr class="type-message type-<?php print $type; ?>-message <?php print empty($iconsets[$type]) ? 'type-empty' : 'type-populated'; ?>">

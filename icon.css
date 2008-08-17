@@ -1,18 +1,9 @@
 /* $Id$ */
 
-#iconsets td.type {
-  font-weight: bold;
-}
 #iconsets tr.type-message {
   font-weight: normal;
   color: #999;
 }
 #iconsets tr.type-populated {
   display: none;
-}
-#iconsets .iconset-type {
-  background-color: #ff6;
-  margin-top: 4px;
-  margin-bottom: 4px;
-  padding: 3px;
 }

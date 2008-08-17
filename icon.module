@@ -160,10 +160,10 @@ function icon_get_iconsets($theme, $reset = FALSE) {
 }
 
 /**
- * Find all non-base icon sets.
+ * Find all installed (non-base) icon sets.
  *
  * @return
- *   An array of icon set files with their info data.
+ *   An array of files objects with their info data attached.
  */
 function _icon_find_iconsets() {
   // Locate icon sets' .info files.
@@ -292,10 +292,10 @@ function _icon_append_iconset_states(&$iconsets, $theme) {
 /**
  * Save statuses and weights for icon sets.
  *
- * @param $iconsets
- *   An array of icon sets to save.
  * @param $theme
  *   The theme for which to save statuses.
+ * @param $iconsets
+ *   An array of icon sets to save.
  */
 function _icon_save_iconset_states($theme, $iconsets = array()) {
   $result = db_query("SELECT iconset, status, weight FROM {iconsets} WHERE theme = '%s'", $theme);
@@ -324,6 +324,8 @@ function _icon_save_iconset_states($theme, $iconsets = array()) {
  *
  * @param $theme
  *   Name of the theme for which to get available icons.
+ * @param $reset
+ *   (optional) Set to TRUE to reset the cache.
  */
 function icon_get_icons($theme, $reset = FALSE) {
   static $icons = array();
@@ -553,8 +555,10 @@ function _icon_rewrite_stylesheet($styles, $icons) {
  *
  * @param $style
  *   Content of the stylesheet to save.
+ * @param $theme
+ *   The theme for which to save stylesheet.
  * @return
- *   Filename of the saved stylesheet relative to the directory.
+ *   Filename of the saved stylesheet.
  */
 function _icon_save_stylesheet($style, $theme) {
   // Prepare the directory.
@@ -581,7 +585,7 @@ function icon_iconsets($theme = NULL) {
     return 'TODO: Remove this tab, go directly to the tab for the current theme.';
   }
 
-  // Fetch and sort icon sets available to the theme, resetting the cache.
+  // Fetch and sort icon sets available to the theme.
   $iconsets = icon_get_iconsets($theme, TRUE);
   foreach ($iconsets as $type => $sets) {
     uasort($iconsets[$type], '_icon_sort_iconsets');
@@ -641,6 +645,7 @@ function icon_iconsets_form(&$form_state, $iconsets, $theme) {
     }
   }
 
+  // Add buttons.
   $form['buttons']['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save configuration'),
