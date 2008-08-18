@@ -1,9 +1,14 @@
 /* $Id$ */
 
-#iconsets tr.type-message {
+#icon-iconsets-form h3 {
+  margin-top: 1em;
+}
+
+table.iconsets {
+  margin: 0 0 1em 0;
+}
+
+table.iconsets tr.type-message {
   font-weight: normal;
   color: #999;
-}
-#iconsets tr.type-populated {
-  display: none;
 }

@@ -4,9 +4,9 @@ ICON MODULE
 -----------
 
 This module is a Google Summer of Code project that adds a central system for
-icons in Drupal, which will help improve the usability. In a way similar to
-themes or modules, it allow users to install icon sets and choose which icons
-to use for their themes.
+icons in Drupal, which will help improve the usability of the admin pages. In
+a way similar to themes or modules, it allow users to install icon sets and
+choose which icons to use for their themes.
 
 By taking advantage of this module, developers may use icons in their modules
 in an easy and coherent way, without reinventing the wheel.
@@ -30,7 +30,8 @@ In addition to this module, you will need the following to give it a try:
 
  * An icon set or two. Download Aesthetica and Crystal here:
    http://kreativmango.no/joakim/sites/default/files/aesthetica.zip
-   http://kreativmango.no/joakim/sites/default/files/aesthetica.zip
+   http://kreativmango.no/joakim/sites/default/files/crystal.zip
+
 
 With the above files downloaded, do the following:
 
@@ -58,9 +59,3 @@ With the above files downloaded, do the following:
 9. Notice how some icons have changed (this is where Aesthetica provides new
    icons) while others remain the same (these are the defaults for the theme)
 
-
-MORE INFORMATION
-----------------
-
-For more information on how the module works, see:
-http://kreativmango.no/joakim/blog/demo-and-instructions
