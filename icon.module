@@ -9,7 +9,7 @@ function icon_help($path, $arg) {
     case 'admin/build/themes/icons':
     case 'admin/build/themes/icons/'. $arg[4]:
       return '<p>'. t('Icon sets offer alternatives to the default icons provided by themes and modules. Icons from all enabled icon sets will be used. If two icon sets provide the same icon, the one in the highest ordered icon set will be used.') .'</p>'.
-             '<p>'. t('To rearrange icon sets, grab a drag-and-drop handle to the left of an icon set and drag the icon set to a new location in the list. (Grab a handle by clicking and holding the mouse while hovering over a handle icon.) Remember that your changes will not be saved until you click the <em>Save configuration</em> button at the bottom of the page.') .'</p>';
+             '<p>'. t('To rearrange icon sets, grab a drag-and-drop handle to the left of an icon set and drag the icon set to a new location in the list. Your changes will not be saved until you click the <em>Save configuration</em> button at the bottom of the page.') .'</p>';
   }
 }
 
