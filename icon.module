@@ -782,11 +782,11 @@ function icon_preprocess(&$variables) {
  * @param $name
  *   The name of the icon to display.
  * @param $size
- *   (optional) The desired pixel size of the icon to display. Defaults to '32'.
+ *   (optional) The desired pixel size of the icon to display. Defaults to '16'.
  * @return
  *   A string containing an image tag of the icon.
  */
-function theme_icon($name, $size = '32') {
+function theme_icon($name, $size = '16') {
   global $_icons;
-  return theme('image', $icons[$name][$size]);
+  return theme('image', $_icons[$name][$size]);
 }
