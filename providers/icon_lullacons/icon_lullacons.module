@@ -3,7 +3,7 @@
 /**
  * Implements hook_icon_bundle_info().
  */
-function lullacons_icon_bundle_info() {
+function icon_lullacons_icon_bundle_info() {
   $bundles = array();
   $bundles['lullacons_pack1'] = array(
     'title' => t('Lullacons: Pack 1'),
@@ -145,7 +145,7 @@ function template_preprocess_icon_lullacons(&$variables) {
 function theme_icon_lullacons($variables) {
   $output = '';
   if ($variables['bundle']['name'] === 'lullacons_pack1') {
-    $path = drupal_get_path('module', 'lullacons') . '/icons/' . $variables['icon'] . '.png';
+    $path = drupal_get_path('module', 'icon_lullacons') . '/icons/' . $variables['icon'] . '.png';
     if ($info = image_get_info($path)) {
       $output = theme('image', array(
         'path' => $path,

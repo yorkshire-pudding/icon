@@ -1,4 +1,4 @@
-name = Menu
+name = Icon API: Menu
 description = Provides icon integration with menu items.
 core = 7.x
 package = Icon API

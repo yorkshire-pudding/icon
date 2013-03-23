@@ -1,0 +1,9 @@
+name = Custom Icons
+description = Allows you to create custom bundles by uploading images.
+core = 7.x
+package = Icon Provider
+
+files[] = icon_custom.install
+files[] = icon_custom.module
+
+dependencies[] = icon
