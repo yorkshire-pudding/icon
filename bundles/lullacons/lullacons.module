@@ -1,0 +1,159 @@
+<?php
+
+/**
+ * Implements hook_icon_bundle_info().
+ */
+function lullacons_icon_bundle_info() {
+  $bundles = array();
+  $bundles['lullacons_pack1'] = array(
+    'title' => t('Lullacons: Pack 1'),
+    'icons' => array(
+      'alert',
+      'arrow-double-down-green',
+      'arrow-double-down-red',
+      'arrow-double-left-green',
+      'arrow-double-left-red',
+      'arrow-double-right-green',
+      'arrow-double-right-red',
+      'arrow-double-up-green',
+      'arrow-double-up-red',
+      'arrow-end-down-green',
+      'arrow-end-down-red',
+      'arrow-end-left-green',
+      'arrow-end-left-red',
+      'arrow-end-right-green',
+      'arrow-end-right-red',
+      'arrow-end-up-green',
+      'arrow-end-up-red',
+      'arrow-single-down-green',
+      'arrow-single-down-red',
+      'arrow-single-left-green',
+      'arrow-single-left-red',
+      'arrow-single-right-green',
+      'arrow-single-right-red',
+      'arrow-single-up-green',
+      'arrow-single-up-red',
+      'arrow-small-down-green',
+      'arrow-small-down-red',
+      'arrow-small-left-green',
+      'arrow-small-left-red',
+      'arrow-small-right-green',
+      'arrow-small-right-red',
+      'arrow-small-up-green',
+      'arrow-small-up-red',
+      'bot-plain-blue',
+      'bot-plain-green',
+      'bot-plain-red',
+      'bot-plain-white',
+      'bot-plain-yellow',
+      'bullet-arrow-down',
+      'bullet-arrow-right',
+      'bullet-round',
+      'bullet-sm-arrow-down',
+      'bullet-sm-arrow-right',
+      'bullet-square',
+      'calendar',
+      'cart',
+      'database-option-add',
+      'database-option-remove',
+      'database',
+      'date-option-add',
+      'date-option-remove',
+      'date-plain',
+      'doc-option-add',
+      'doc-option-edit',
+      'doc-option-remove',
+      'doc-option-tab',
+      'doc-plain-blue',
+      'doc-plain-green',
+      'doc-plain-orange',
+      'doc-plain-red',
+      'doc-plain-white',
+      'doc-type-bmp',
+      'doc-type-doc',
+      'doc-type-gif',
+      'doc-type-jpg',
+      'doc-type-pict',
+      'doc-type',
+      'doc-type-ppt',
+      'doc-type-xls',
+      'error',
+      'folder-closed-blue',
+      'folder-closed-green',
+      'folder-closed-red',
+      'folder-closed-white',
+      'folder-open-blue',
+      'folder-open-green',
+      'folder-open-red',
+      'folder-open-white',
+      'folder-option-add',
+      'folder-option-denied',
+      'folder-option-insert',
+      'folder-option-remove',
+      'info',
+      'large-alert',
+      'large-info',
+      'large-stop',
+      'mail-open',
+      'mail',
+      'mini-category',
+      'mini-comment',
+      'mini-doc',
+      'mini-edit',
+      'mini-mail-open',
+      'mini-mail',
+      'mini-time',
+      'mini-trash',
+      'movie-option-add',
+      'movie-option-remove',
+      'movie',
+      'photo-multiple-option-add',
+      'photo-multiple-option-remov',
+      'photo-multiple',
+      'photo-option-add',
+      'photo-option-remove',
+      'photo',
+      'time',
+      'user-multiple',
+      'user-option-add',
+      'user-option-remove',
+      'user-plain-blue',
+      'user-plain-green',
+      'user-plain-red',
+      'user-plain-yellow',
+    ),
+  );
+  return $bundles;
+}
+
+/**
+ * Implements hook_preprocess_icon_lullacons().
+ */
+function template_preprocess_icon_lullacons(&$variables) {
+  // Add default icon class.
+  $attributes = &$variables['attributes'];
+  if (!isset($attributes['class'])) {
+    $attributes['class'] = array();
+  }
+  $attributes['class'][] = $variables['icon'];
+}
+
+/**
+ * Implements theme_icon_MODULE().
+ * Returns an image of the requested icon.
+ */
+function theme_icon_lullacons($variables) {
+  $output = '';
+  if ($variables['bundle']['name'] === 'lullacons_pack1') {
+    $path = drupal_get_path('module', 'lullacons') . '/icons/' . $variables['icon'] . '.png';
+    if ($info = image_get_info($path)) {
+      $output = theme('image', array(
+        'path' => $path,
+        'height' => $info['height'],
+        'width' => $info['width'],
+        'attributes' => $variables['attributes'],
+      ));
+    }
+  }
+  return $output;
+}

@@ -1,0 +1,8 @@
+name = Lullacons
+description = Icon bundle provided by <a href="http://www.lullabot.com/articles/free-gpl-icons-lullacons-pack-1">Lullabot</a>
+core = 7.x
+package = Icon Provider
+
+files[] = lullacons.module
+
+dependencies[] = icon

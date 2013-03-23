@@ -1,0 +1,276 @@
+<?php
+
+/**
+ * @file icon.module
+ * Implements an API for icon providers and administrative UI for integrating icons through out the site.
+ */
+
+/**
+ * Implements hook_flush_caches().
+ */
+function icon_flush_caches() {
+  return array('cache_icon_bundles');
+}
+
+/**
+ * Implements hook_menu().
+ */
+function icon_menu() {
+  $items = array();
+  $items['admin/config/user-interface/icons'] = array(
+    'title' => 'Icons',
+    'description' =>  'Provides an overview of all icons bundles available for the site.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('icon_bundle_overview_form'),
+    'access arguments' => array('administer site icons'),
+    'file' => 'icon.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function icon_theme($existing, $type, $theme, $path) {
+  $hooks['icon'] = array(
+    'pattern' => 'icon',
+    'variables' => array(
+      'attributes' => array(),
+      'icon' => NULL,
+      'bundle' => NULL,
+    ),
+  );
+  // Add hooks for bundle providers so they can control their icon output.
+  $set = array();
+  foreach (icon_bundle_info() as $name => $bundle) {
+    $extension = $bundle[$bundle['extension']];
+    if (!isset($set[$extension])) {
+      $hooks['icon_' . $extension] = array(
+        'variables' => array(
+          'attributes' => array(),
+          'icon' => NULL,
+          'bundle' => NULL,
+        ),
+      );
+    }
+  }
+  return $hooks;
+}
+
+/**
+ * Default properties for a bundle definition.
+ *
+ * @param: $bundle
+ *   An associative array of bundle information, passed by reference.
+ * @param: $name
+ *   The machine name of the bundle.
+ */
+function icon_bundle_defaults(&$bundle, $name) {
+  $bundle += array(
+    'name' => $name,
+    'title' => $name,
+    'icons' => array(),
+    'import' => FALSE,
+    'settings' => array(),
+  );
+  return $bundle;
+}
+
+/**
+ * Returns information about registered bundles.
+ *
+ * The returned information is unprocessed; i.e., as registered by modules.
+ * Shamelessly copied from the Libraries module and altered slightly.
+ *
+ * @param $name
+ *   (optional) The machine name of a bundle to return registered information
+ *   for. If omitted, information about all registered bundles is returned.
+ *
+ * @return array|false
+ *   An associative array containing registered information for all bundles,
+ *   the registered information for the bundle specified by $name, or FALSE if
+ *   the bundle $name is not registered.
+ *
+ * @see hook_icon_bundle_info()
+ */
+function &icon_bundle_info($name = NULL) {
+  $bundles = &drupal_static(__FUNCTION__);
+  if (!isset($bundles)) {
+    $bundles = array();
+    // Gather information from hook_icon_bundle_info().
+    foreach (module_implements('icon_bundle_info') as $module) {
+      foreach (module_invoke($module, 'icon_bundle_info') as $machine_name => $bundle) {
+        $bundle['extension'] = 'module';
+        $bundle['module'] = $module;
+        $bundles[$machine_name] = $bundle;
+      }
+    }
+    // Gather information from hook_icon_bundle_info() in enabled themes.
+    // @see drupal_alter()
+    global $theme, $base_theme_info;
+    if (isset($theme)) {
+      $theme_keys = array();
+      foreach ($base_theme_info as $base) {
+        $theme_keys[] = $base->name;
+      }
+      $theme_keys[] = $theme;
+      foreach ($theme_keys as $theme_key) {
+        $function = $theme_key . '_' . 'icon_bundle_info';
+        if (function_exists($function)) {
+          foreach ($function() as $machine_name => $bundle) {
+            $bundle['extension'] = 'theme';
+            $bundle['theme'] = $theme_key;
+            $bundles[$machine_name] = $bundle;
+          }
+        }
+      }
+    }
+    // Provide defaults.
+    foreach ($bundles as $machine_name => &$bundle) {
+      icon_bundle_defaults($bundle, $machine_name);
+    }
+    // Allow modules to alter the registered bundles.
+    drupal_alter('icon_bundle_info', $bundles);
+  }
+  if (isset($name)) {
+    if (!empty($bundles[$name])) {
+      return $bundles[$name];
+    }
+    else {
+      $false = FALSE;
+      return $false;
+    }
+  }
+  return $bundles;
+}
+
+/**
+ * Loads a bundle.
+ *
+ * @param $name
+ *   The name of the bundle to load.
+ *
+ * @return
+ *   An associative array of bundle information as returned from
+ *   icon_bundle_info().
+ */
+function icon_bundle_load($name) {
+  $loaded = &drupal_static(__FUNCTION__, array());
+  if (!isset($loaded[$name])) {
+    $bundle = cache_get($name, 'cache_icon_bundles');
+    if ($bundle) {
+      $bundle = $bundle->data;
+    }
+    else {
+      $bundle = icon_bundle_info($name);
+      cache_set($name, $bundle, 'cache_icon_bundles');
+    }
+    $loaded[$name] = $bundle;
+  }
+  return $loaded[$name];
+}
+
+/**
+ * Implements hook_element_info().
+ */
+function icon_element_info() {
+  $types['icon'] = array(
+    '#input' => TRUE,
+    '#process' => array('form_process_icon'),
+    '#theme_wrappers' => array('form_element'),
+  );
+}
+
+/**
+ * Processes an icon select list form element.
+ */
+function form_process_icon($element) {
+  $module_path = drupal_get_path('module', 'icon');
+  $element['#attached'] = array(
+    'css' => array(
+      $module_path . '/css/icon.admin.css',
+    ),
+    'js' => array(
+      $module_path . '/js/icon.admin.js',
+    ),
+  );
+  $bundle = $element['#default_bundle'];
+  $icon = $element['#default_icon'];
+  $bundle = $form_state['bundle'];
+  $random = mt_rand();
+  $options = array('' => '- No Icon -');
+  foreach ($bundle['icons'] as $name => $icon) {
+    $options[$name] = $name;
+  }
+  if (!count($bundle['icons'])) {
+    return;
+  }
+  $element['icon'] = array(
+    '#type' => 'select',
+    '#options' => array_combine(array_keys($options), array_values($options)),
+    '#attributes' => array(
+      'class' => array('icon-value'),
+    ),
+    '#prefix' => '<div data-dropdown="#dropdown-' . $random .'" class="fontello-select-icon form-item">',
+  );
+  if (isset($element['#default_value'])) {
+    $element['icon']['#default_value'] = $element['#default_value'];
+  }
+  $element['bundle'] = array(
+    '#type' => 'value',
+    '#value' => $bundle,
+  );
+  // Enclose the text with labels and assign class names for JS dropdown.
+  foreach ($options as $name => $icon) {
+    $options[$name] = array(
+      'data' => empty($name) ? '<label>' . $icon . '</label></li><li class="dropdown-divider">' : '<label>' . theme('icon_icon' , array('icon' => $name, 'bundle' => $bundle)) . ' ' . $icon . '</label>',
+      'data-value' => $name,
+    );
+  }
+  $element['icon_dropdown'] = array(
+    '#theme' => 'icon_list',
+    '#items' => $options,
+    '#attributes' => array('class' => array('dropdown-menu')),
+    '#prefix' => '<div id="dropdown-' . $random . '" class="dropdown dropdown-scroll">',
+    '#suffix' => '</div></div>',
+  );
+  return $element;
+}
+
+/**
+ * Implements hook_preprocess_icon().
+ */
+function template_preprocess_icon(&$variables) {
+  $bundle = &$variables['bundle'];
+  $icon = &$variables['icon'];
+  if (empty($bundle) || empty($icon)) {
+    return;
+  }
+  if (is_string($bundle)) {
+    $bundle = icon_bundle_load($bundle);
+  }
+  // Check to see if icon is part of the bundle.
+  if (!$bundle || !(isset($bundle['icons'][$icon]) || in_array($icon, $bundle['icons']))) {
+    $bundle = FALSE;
+    $icon = FALSE;
+    return;
+  }
+  // Add default icon class.
+  $attributes = &$variables['attributes'];
+  if (!isset($attributes['class'])) {
+    $attributes['class'] = array();
+  }
+  $attributes['class'][] = 'icon';
+}
+
+/**
+ * Theming responsibility is passed to the bundle provider.
+ */
+function theme_icon($variables) {
+  $bundle = $variables['bundle'];
+  $icon = $variables['icon'];
+  if (!empty($bundle) && !empty($icon)) {
+    return theme('icon_' . $bundle[$bundle['extension']], $variables);
+  }
+}

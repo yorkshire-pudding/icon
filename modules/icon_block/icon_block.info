@@ -1,0 +1,10 @@
+name = Block
+description = Provides icon integration with the block system.
+core = 7.x
+package = Icon API
+
+files[] = icon_block.install
+files[] = icon_block.module
+
+dependencies[] = block
+dependencies[] = icon
