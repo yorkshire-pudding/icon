@@ -23,7 +23,7 @@ function hook_icon_bundle_info() {
     // This array can be structured to your liking. You must, however, ensure
     // that the theme callback understands the structure that is created here.
     'icons' => array(
-      'alert',
+      'alert', // Icon names (filenames, without extension)
       'info',
       'warning',
     ),
@@ -38,7 +38,7 @@ function hook_icon_bundle_info() {
 }
 
 /**
- * Implements hook_preprocess_icon_MODULE().
+ * Implements template_preprocess_icon_MODULE().
  */
 function template_preprocess_icon_MODULE(&$variables) {
   // Add custom classes here.
@@ -46,7 +46,7 @@ function template_preprocess_icon_MODULE(&$variables) {
 }
 
 /**
- * Implements hook_process_icon_MODULE().
+ * Implements template_process_icon_MODULE().
  */
 function template_process_icon_MODULE(&$variables) {
   // Not likely used, but available nonetheless.
