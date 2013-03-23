@@ -1,0 +1,10 @@
+name = File
+description = Provides icon integration with the file module.
+core = 7.x
+package = Icon API
+
+files[] = icon_file.install
+files[] = icon_file.module
+
+dependencies[] = file
+dependencies[] = icon
