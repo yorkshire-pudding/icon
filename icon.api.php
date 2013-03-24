@@ -11,35 +11,82 @@
  */
 
 /**
- * Define bundles.
+ * Define information about icon providers and bundles.
  *
- * @return $bundles
- *   A collection of bundles.
+ * @return $providers
+ *   An associative array containing the provider details, each containing a collection of bundles.
+ * @see lullacons_icon_info()
  */
-function hook_icon_bundle_info() {
-  $bundles = array();
-  $bundles['my_bundle'] = array(
-    // icons: required, associative array with the icon machine name set as the key.
-    // This array can be structured to your liking. You must, however, ensure
-    // that the theme callback understands the structure that is created here.
-    'icons' => array(
-      'alert', // Icon names (filenames, without extension)
-      'info',
-      'warning',
+function hook_icon_info() {
+  $providers['provider_machine_name'] = array(
+    // title: optional, human readable title for the bundle. Defaults to provider_machine_name.
+    'title' => t('My Provider Name'),
+    // url: optional, URL the points to more information about the provider. Used on the icon overview page.
+    'url' => 'http://example.com/icons_provided',
+    // bundles: required, associative array containing the following structure.
+    // file: optional, name of the file where the preprocessing and theming functions reside. By default this is the .module file.
+    'file' => 'bundles.inc',
+    // path: optional, path to where the file above is located. It is by default the path of the module that implements this hook.
+    'path' => drupal_get_path('module', 'my_module') . '/includes',
+    'bundles' => array(
+      'bundle_machine_name' => array(
+        // title: optional, human readable title for the bundle. Defaults to bundle_machine_name.
+        'title' => t('My Bundle'),
+        // icons: required, associative array with the icon machine name set as the key.
+        // This array can be structured to your liking. You must, however, ensure
+        // that the theme callback understands the structure that is created here.
+        'icons' => array(
+          'alert', // Icon names (filenames, without extension)
+          'info',
+          'warning',
+        ),
+        // import: optional, declare that this bundle supports importing a compressed archive file.
+        'import' => FALSE, // or TRUE,
+        // settings: optional, associative array of default settings.
+        'settings' => array(),
+      ),
     ),
-    // title: optional, human readable title for the bundle. Defaults to machine name.
-    'title' => t('My Bundle'),
-    // import: optional, declare that this bundle supports importing a compressed archive file.
-    'import' => FALSE, // or TRUE,
-    // settings: optional, associative array of default settings.
-    'settings' => array(),
   );
-  return $bundles;
+  return $providers;
 }
 
 /**
- * @TODO: Implement the following hooks.
+ * Modify icon information before it gets cached.
  */
+function hook_icon_info_alter(&$info) {
+}
+
+/**
+ * Modify icon bundles before it gets cached.
+ */
+function hook_icon_bundles_alter(&$bundle) {
+}
+
+/**
+ * Modify icon providers before it gets cached.
+ */
+function hook_icon_providers_alter(&$info) {
+}
+
+/**
+ * Implements hook_preprocess_icon_PROVIDER().
+ * @see lullacons_preprocess_icon_lullabot()
+ */
+function hook_preprocess_icon_PROVIDER(&$variables) {
+  // Add custom classes here.
+  $variables['attributes']['class'][] = 'custom-class';
+}
+
+/**
+ * Implements hook_process_icon_PROVIDER().
+ */
+function hook_process_icon_PROVIDER(&$variables) {
+  // Not likely used, but available nonetheless.
+}
+
+
+
+// @TODO Implement the following hooks.
 
 /**
  * Delete callback for bundle.
@@ -80,21 +127,6 @@ function hook_icon_bundle_import_submit($form, &$form_state) {
  * @addtogroup themable
  * @{
  */
-
-/**
- * Implements template_preprocess_icon_MODULE().
- */
-function template_preprocess_icon_MODULE(&$variables) {
-  // Add custom classes here.
-  $variables['attributes']['class'][] = 'custom-class';
-}
-
-/**
- * Implements template_process_icon_MODULE().
- */
-function template_process_icon_MODULE(&$variables) {
-  // Not likely used, but available nonetheless.
-}
 
 /**
  * Implements theme_icon_MODULE().

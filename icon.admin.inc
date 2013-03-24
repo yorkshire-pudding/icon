@@ -8,16 +8,31 @@
 /**
  * Icon Bundle Overview Form
  */
-function icon_bundle_overview_form($form, $form_state, $theme = 'default') {
-  // @TODO: remove this proof of concept test and replace with an overview form.
-  if ($bundle = icon_bundle_load('lullacons_pack1')) {
-    foreach ($bundle['icons'] as $icon) {
-      $form[$icon] = array(
-        '#theme' => 'icon',
-        '#bundle' => 'lullacons_pack1',
-        '#icon' => $icon,
+function icon_bundle_overview() {
+  $build = array();
+  $header = array(
+    'bundle' => t('Bundle'),
+    'provider' => t('Provider'),
+    'count' => t('# of Icons'),
+    t('Operations'),
+  );
+  $rows = array();
+  foreach (icon_info() as $provider) {
+    foreach ($provider['bundles'] as $bundle) {
+      $row = array(
+        $bundle['title'],
+        !empty($provider['url']) ? l($provider['title'], $provider['url']) : $provider['title'],
+        count($bundle['icons']),
+        '',
       );
+      $rows[] = $row;
     }
   }
-  return $form;
+  $build['bundles'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('No bundles currently installed.'),
+  );
+  return drupal_render($build);
 }

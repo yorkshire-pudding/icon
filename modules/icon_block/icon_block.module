@@ -60,7 +60,7 @@ function icon_block_form_alter(&$form, &$form_state, $form_id) {
     $icon_state = array('invisible' => array(':input[name="icon_selector[icon]"]' => array('value' => '')));
     $form['settings']['icon_selector']['position'] = array(
       '#type' => 'select',
-      '#title' => t('Block Position:'),
+      '#title' => t('Position'),
       '#options' => array(
         'title_before' => t('Before title'),
         'title_after' => t('After title'),
