@@ -130,12 +130,12 @@ function theme_icon_MODULE($variables) {
  */
 
 /**
- * Implements the icon_picker input element.
- * The icon_picker sets a tree state of TRUE, values will be inside
+ * Implements the icon_selector input element.
+ * The icon_selector sets a tree state of TRUE, values will be inside
  * the element's value tree as "bundle" and "icon".
  * 
  * @param string #type
- *   The type of element to render, must be: icon_picker.
+ *   The type of element to render, must be: icon_selector.
  * @param string #title (optional, default: "Icon")
  *   The title of the fieldset.
  * @param boolean #collapsible (optional, default: TRUE)
@@ -150,9 +150,9 @@ function theme_icon_MODULE($variables) {
  * @see icon_block_form_alter()
  * @see icon_block_form_submit()
  */
-function _icon_picker_element_info() {
+function _icon_selector_element_info() {
   return array(
-    '#type' => 'icon_picker',
+    '#type' => 'icon_selector',
     '#title' => t('Icon'),
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
