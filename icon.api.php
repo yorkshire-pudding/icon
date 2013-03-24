@@ -2,7 +2,7 @@
 
 /**
  * @file icon.api.php
- * Hooks provided by the Icon API module.
+ * Module hooks, theming hooks and form elements provided by the Icon API module.
  */
 
 /**
@@ -36,6 +36,50 @@ function hook_icon_bundle_info() {
   );
   return $bundles;
 }
+
+/**
+ * @TODO: Implement the following hooks.
+ */
+
+/**
+ * Delete callback for bundle.
+ */
+function hook_icon_bundle_delete($bundle) {
+}
+
+/**
+ * Save callback for bundle.
+ */
+function hook_icon_bundle_save($bundle) {
+}
+
+/**
+ * Process callback for bundle import.
+ */
+function hook_icon_bundle_import_process($file, &$form_state) {
+}
+
+/**
+ * Validate callback for bundle import.
+ */
+function hook_icon_bundle_import_validate($form, &$form_state) {
+}
+
+/**
+ * Submit callback for bundle import.
+ */
+function hook_icon_bundle_import_submit($form, &$form_state) {
+}
+
+/*
+ * @} End of "addtogroup hooks".
+ */
+
+
+/**
+ * @addtogroup themable
+ * @{
+ */
 
 /**
  * Implements template_preprocess_icon_MODULE().
@@ -75,40 +119,48 @@ function theme_icon_MODULE($variables) {
   return $output;
 }
 
+/*
+ * @} End of "addtogroup themable".
+ */
+
+
 /**
- * @TODO: Implement the following hooks.
+ * @addtogroup input_element
+ * @{
  */
 
 /**
- * Delete callback for bundle.
+ * Implements the icon_picker input element.
+ * The icon_picker sets a tree state of TRUE, values will be inside
+ * the element's value tree as "bundle" and "icon".
+ * 
+ * @param string #type
+ *   The type of element to render, must be: icon_picker.
+ * @param string #title (optional, default: "Icon")
+ *   The title of the fieldset.
+ * @param boolean #collapsible (optional, default: TRUE)
+ *   Determine whether the fieldset is collapsible.
+ * @param boolean #collapsed (optional, default: FALSE)
+ *   Determine whether the fieldset should initialize in a collapsed state.
+ * @param string #default_bundle (optional)
+ *   Machine name of the default bundle to initialize with.
+ * @param string #default_icon (optional)
+ *   Machine name of the default icon to initialize with.
+ *  
+ * @see icon_block_form_alter()
+ * @see icon_block_form_submit()
  */
-function hook_icon_bundle_delete($bundle) {
-}
-
-/**
- * Save callback for bundle.
- */
-function hook_icon_bundle_save($bundle) {
-}
-
-/**
- * Process callback for bundle import.
- */
-function hook_icon_bundle_import_process($file, &$form_state) {
-}
-
-/**
- * Validate callback for bundle import.
- */
-function hook_icon_bundle_import_validate($form, &$form_state) {
-}
-
-/**
- * Submit callback for bundle import.
- */
-function hook_icon_bundle_import_submit($form, &$form_state) {
+function _icon_picker_element_info() {
+  return array(
+    '#type' => 'icon_picker',
+    '#title' => t('Icon'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+    '#default_bundle' => '',
+    '#default_icon' => '',
+  );
 }
 
 /*
- * @} End of "addtogroup hooks".
+ * @} End of "addtogroup input_element".
  */
