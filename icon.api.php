@@ -19,15 +19,15 @@
  */
 function hook_icon_info() {
   $providers['provider_machine_name'] = array(
-    // title: optional, human readable title for the bundle. Defaults to provider_machine_name.
+    // title: optional, human readable title for the provider. Defaults to provider_machine_name.
     'title' => t('My Provider Name'),
     // url: optional, URL the points to more information about the provider. Used on the icon overview page.
     'url' => 'http://example.com/icons_provided',
-    // bundles: required, associative array containing the following structure.
     // file: optional, name of the file where the preprocessing and theming functions reside. By default this is the .module file.
     'file' => 'bundles.inc',
     // path: optional, path to where the file above is located. It is by default the path of the module that implements this hook.
     'path' => drupal_get_path('module', 'my_module') . '/includes',
+    // bundles: required, associative array containing the following structure.
     'bundles' => array(
       'bundle_machine_name' => array(
         // title: optional, human readable title for the bundle. Defaults to bundle_machine_name.
@@ -129,10 +129,10 @@ function hook_icon_bundle_import_submit($form, &$form_state) {
  */
 
 /**
- * Implements theme_icon_MODULE().
+ * Implements theme_icon_PROVIDER().
  * Returns an image of the requested icon.
  */
-function theme_icon_MODULE($variables) {
+function theme_icon_PROVIDER($variables) {
   $output = '';
   $bundle = $variables['bundle'];
   $icon = $variables['icon'];
