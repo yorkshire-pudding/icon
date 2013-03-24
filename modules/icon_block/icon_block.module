@@ -19,31 +19,26 @@ function icon_block_defaults() {
   return array(
     'icon' => '',
     'position' => 'title_before',
-    'bundle' => icon_bundle_defaults(),
+    'bundle' => '',
   );
 }
+
 /*
  * Extend block's classes with any user defined classes.
  */
 function icon_block_preprocess_block(&$variables) {
   $block = &$variables['block'];
-  $icon = isset($block->icon) ? unserialize($block->icon) : array();
-  
-  $theme = $GLOBALS['theme_key'];
-  if (isset($block->theme)) {
-    $theme = $block->theme;
-  }
-  $icon = array_merge(icon_block_defaults(icon_bundle_load($theme)), isset($block->icon) ? (array) unserialize($block->icon) : array());
-  $bundle = $icon['bundle'];
-  if (!empty($icon['icon']) && isset($bundle['icons'][$icon['icon']])) {
-    $icon = theme('icon_icon', array('icon' => $icon['icon'], 'bundle' => $bundle));
-    switch ($icon['position']) {
-      case 'title_before': $variables['title_prefix'][] = array('#markup' => $icon); break;
-      case 'title_after': $variables['title_suffix'][] = array('#markup' => $icon); break;
-      case 'title_inside_before': $block->subject = $icon . $block->subject; break;
-      case 'title_inside_after': $block->subject .= $icon; break;
-      case 'content_before': $variables['content'] = $icon . $variables['content']; break;
-      case 'content_after': $variables['content'] .= $icon; break;
+  $settings = array_merge(icon_block_defaults(), isset($block->icon) ? (array) unserialize($block->icon) : array());
+  if (!empty($settings['bundle']) && !empty($settings['icon'])) {
+    if ($icon = theme('icon', array('bundle' => $settings['bundle'], 'icon' => $settings['icon']))) {
+      switch ($settings['position']) {
+        case 'title_before': $variables['title_prefix'][] = array('#markup' => $icon); break;
+        case 'title_after': $variables['title_suffix'][] = array('#markup' => $icon); break;
+        case 'title_inside_before': $block->subject = $icon . $block->subject; break;
+        case 'title_inside_after': $block->subject .= $icon; break;
+        case 'content_before': $variables['content'] = $icon . $variables['content']; break;
+        case 'content_after': $variables['content'] .= $icon; break;
+      }
     }
   }
 }
@@ -52,18 +47,10 @@ function icon_block_preprocess_block(&$variables) {
  * Alter block edit form
  */
 function icon_block_form_alter(&$form, &$form_state, $form_id) {
-  global $user;
-  if (($form_id == 'block_admin_configure' || $form_id == 'block_add_block_form') && user_access('administer block icons', $user)) {
+  if (($form_id == 'block_admin_configure' || $form_id == 'block_add_block_form') && user_access('administer block icons')) {
     $block = block_load($form['module']['#value'], $form['delta']['#value']);
-    $theme = variable_get('theme_default', 'bartik');
-    if (isset($block->theme)) {
-      $theme = $block->theme;
-    }
-    elseif (arg(5) === 'add') {
-      $theme = arg(4);
-    }
     $settings = array_merge(icon_block_defaults(), isset($block->icon) ? (array) unserialize($block->icon) : array());
-    // Add an icon selector form element.
+    // Add an icon selector input element.
     $form['settings']['icon_selector'] = array(
       '#type' => 'icon_selector',
       '#default_bundle' => $settings['bundle'],
@@ -88,7 +75,6 @@ function icon_block_form_alter(&$form, &$form_state, $form_id) {
     $form['#submit'][] = 'icon_block_form_submit';
   }
 }
-
 
 /**
  * Save supplied class.
