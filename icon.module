@@ -13,18 +13,28 @@ function icon_flush_caches() {
 }
 
 /**
+ * Implements hook_permission().
+ */
+function icon_permission() {
+  return array(
+    'administer icons' => array(
+      'title' => t('Administer Icons'),
+      'description' => t('Administer icons.'),
+    ),
+  );
+}
+
+/**
  * Implements hook_menu().
  */
 function icon_menu() {
   $items = array();
   $items['admin/config/user-interface/icons'] = array(
-    'title' => 'Icons',
+    'title' => 'Icon Bundles',
     'description' =>  'Provides an overview of all icons bundles available for the site.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('icon_bundle_overview_form'),
-    'access arguments' => array('administer site icons'),
+    'page callback' => 'icon_bundle_overview',
+    'access arguments' => array('administer icons'),
     'file' => 'icon.admin.inc',
-    'type' => MENU_LOCAL_TASK,
   );
   return $items;
 }
