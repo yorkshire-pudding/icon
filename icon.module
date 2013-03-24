@@ -182,27 +182,45 @@ function icon_bundle_load($name) {
 }
 
 /**
+ * Implements hook_library().
+ */
+function icon_library() {
+  $module_path = drupal_get_path('module', 'icon');
+  $libraries['icon_picker'] = array(
+    'title' => 'Icon Picker',
+    'website' => 'http://drupal.org/project/icon',
+    'version' => '1.0.1',
+    'css' => array(
+      $module_path . '/css/icon.picker.css' => array()
+    ),
+    'js' => array(
+      $module_path . '/js/icon.picker.js' => array(),
+      array(
+      'type' => 'setting',
+      'data' => array('IconPicker' => array(
+        'bundles' => array_keys(icon_bundle_info()),
+      )),
+    )),
+  );
+  return $libraries;
+}
+
+/**
  * Implements hook_element_info().
  */
 function icon_element_info() {
-  $module_path = drupal_get_path('module', 'icon');
   $types['icon_picker'] = array(
     '#input' => TRUE,
     '#tree' => TRUE,
+    '#title' => t('Icon'),
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
+    '#default_bundle' => '',
+    '#default_icon' => '',
     '#process' => array('form_process_fieldset', 'form_process_icon_picker'),
     '#pre_render' => array('form_pre_render_fieldset'),
     '#theme_wrappers' => array('fieldset'),
-    '#attached' => array(
-      'css' => array($module_path . '/css/icon.admin.css'),
-      'js' => array($module_path . '/js/icon.admin.js', array(
-        'type' => 'setting',
-        'data' => array('IconPicker' => array(
-          'bundles' => array_keys(icon_bundle_info()),
-        )),
-      )),
-    ),
+    '#attached' => array('library' => array(array('icon', 'icon_picker'))),
   );
   return $types;
 }
@@ -211,16 +229,12 @@ function icon_element_info() {
  * Processes an icon select list form element.
  */
 function form_process_icon_picker($element) {
-  // Set the fieldset title, if not provided.
-  if (!isset($element['#title'])) {
-    $element['#title'] = t('Icon');
-  }
   // Get default values.
-  $default_bundle = isset($element['#bundle']) ? $element['#bundle'] : icon_bundle_defaults();
+  $default_bundle = isset($element['#default_bundle']) ? $element['#default_bundle'] : icon_bundle_defaults();
   if (!is_array($default_bundle)) {
     $default_bundle = icon_bundle_load($default_bundle);
   }
-  $default_icon = isset($element['#icon']) ? $element['#icon'] : '';
+  $default_icon = isset($element['#default_icon']) ? $element['#default_icon'] : '';
   $default_value = '';
   if ($default_bundle && !empty($default_bundle['name']) && !empty($default_icon)) {
     $default_value = $default_bundle['name'] . '|' . $default_icon;

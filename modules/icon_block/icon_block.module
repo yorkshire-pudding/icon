@@ -66,8 +66,8 @@ function icon_block_form_alter(&$form, &$form_state, $form_id) {
     // Add an icon picker form element.
     $form['settings']['icon_picker'] = array(
       '#type' => 'icon_picker',
-      '#bundle' => $settings['bundle'],
-      '#icon' => $settings['icon'],
+      '#default_bundle' => $settings['bundle'],
+      '#default_icon' => $settings['icon'],
     );
     // Additional configuration on where to place the icon in the block.
     $icon_state = array('invisible' => array(':input[name="icon_picker[icon]"]' => array('value' => '')));
