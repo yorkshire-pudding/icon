@@ -8,3 +8,4 @@ files[] = icon_file.module
 
 dependencies[] = file
 dependencies[] = icon
+dependencies[] = not_yet_built

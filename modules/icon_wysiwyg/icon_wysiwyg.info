@@ -8,3 +8,4 @@ files[] = icon_wysiwyg.module
 
 dependencies[] = icon
 dependencies[] = wysiwyg
+dependencies[] = not_yet_built

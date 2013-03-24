@@ -7,3 +7,4 @@ files[] = icon_custom.install
 files[] = icon_custom.module
 
 dependencies[] = icon
+dependencies[] = not_yet_built
