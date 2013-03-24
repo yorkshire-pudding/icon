@@ -76,7 +76,7 @@ function icon_theme($existing, $type, $theme, $path) {
  * @param: $name
  *   The machine name of the bundle.
  */
-function icon_bundle_defaults(&$bundle, $name) {
+function icon_bundle_defaults(&$bundle = array(), $name = '') {
   $bundle += array(
     'name' => $name,
     'title' => $name,
@@ -185,67 +185,86 @@ function icon_bundle_load($name) {
  * Implements hook_element_info().
  */
 function icon_element_info() {
-  $types['icon'] = array(
+  $module_path = drupal_get_path('module', 'icon');
+  $types['icon_picker'] = array(
     '#input' => TRUE,
-    '#process' => array('form_process_icon'),
-    '#theme_wrappers' => array('form_element'),
+    '#tree' => TRUE,
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+    '#process' => array('form_process_fieldset', 'form_process_icon_picker'),
+    '#pre_render' => array('form_pre_render_fieldset'),
+    '#theme_wrappers' => array('fieldset'),
+    '#attached' => array(
+      'css' => array($module_path . '/css/icon.admin.css'),
+      'js' => array($module_path . '/js/icon.admin.js', array(
+        'type' => 'setting',
+        'data' => array('IconPicker' => array(
+          'bundles' => array_keys(icon_bundle_info()),
+        )),
+      )),
+    ),
   );
+  return $types;
 }
 
 /**
  * Processes an icon select list form element.
  */
-function form_process_icon($element) {
-  $module_path = drupal_get_path('module', 'icon');
-  $element['#attached'] = array(
-    'css' => array(
-      $module_path . '/css/icon.admin.css',
-    ),
-    'js' => array(
-      $module_path . '/js/icon.admin.js',
-    ),
-  );
-  $bundle = $element['#default_bundle'];
-  $icon = $element['#default_icon'];
-  $bundle = $form_state['bundle'];
-  $random = mt_rand();
-  $options = array('' => '- No Icon -');
-  foreach ($bundle['icons'] as $name => $icon) {
-    $options[$name] = $name;
+function form_process_icon_picker($element) {
+  // Set the fieldset title, if not provided.
+  if (!isset($element['#title'])) {
+    $element['#title'] = t('Icon');
   }
-  if (!count($bundle['icons'])) {
-    return;
+  // Get default values.
+  $default_bundle = isset($element['#bundle']) ? $element['#bundle'] : icon_bundle_defaults();
+  if (!is_array($default_bundle)) {
+    $default_bundle = icon_bundle_load($default_bundle);
+  }
+  $default_icon = isset($element['#icon']) ? $element['#icon'] : '';
+  $default_value = '';
+  if ($default_bundle && !empty($default_bundle['name']) && !empty($default_icon)) {
+    $default_value = $default_bundle['name'] . '|' . $default_icon;
+  }
+  // Build the options array for available icons per bundle.
+  $options = array();
+  foreach (icon_bundle_info() as $bundle_name => $bundle) {
+    foreach ($bundle['icons'] as $icon_name => $icon) {
+      $icon_name = is_string($icon_name) ? $icon_name : $icon;
+      if (is_array($icon_name) && isset($icon_name['name'])) {
+        $icon_name = $icon_name['name'];
+      }
+      $icon_title = is_string($icon_name) ? $icon_name : $icon;
+      if (is_array($icon_title) && isset($icon_title['title'])) {
+        $icon_title = $icon_title['title'];
+      }
+      $options[$bundle['title']][$bundle['name'] . '|' . $icon_name] = $icon_title;
+    }
   }
   $element['icon'] = array(
+    '#title' => t('Choose Icon:'),
     '#type' => 'select',
-    '#options' => array_combine(array_keys($options), array_values($options)),
-    '#attributes' => array(
-      'class' => array('icon-value'),
-    ),
-    '#prefix' => '<div data-dropdown="#dropdown-' . $random .'" class="fontello-select-icon form-item">',
+    '#options' => $options,
+    '#default_value' => $default_value,
+    '#empty_option' => '- No Icon -',
+    '#weight' => -10,
   );
   if (isset($element['#default_value'])) {
     $element['icon']['#default_value'] = $element['#default_value'];
   }
-  $element['bundle'] = array(
-    '#type' => 'value',
-    '#value' => $bundle,
-  );
-  // Enclose the text with labels and assign class names for JS dropdown.
-  foreach ($options as $name => $icon) {
-    $options[$name] = array(
-      'data' => empty($name) ? '<label>' . $icon . '</label></li><li class="dropdown-divider">' : '<label>' . theme('icon_icon' , array('icon' => $name, 'bundle' => $bundle)) . ' ' . $icon . '</label>',
-      'data-value' => $name,
-    );
-  }
-  $element['icon_dropdown'] = array(
-    '#theme' => 'icon_list',
-    '#items' => $options,
-    '#attributes' => array('class' => array('dropdown-menu')),
-    '#prefix' => '<div id="dropdown-' . $random . '" class="dropdown dropdown-scroll">',
-    '#suffix' => '</div></div>',
-  );
   return $element;
+}
+
+/**
+ * Implements form_type_ELEMENT_value().
+ * Value callback for the 'icon_picker' element.
+ */
+function form_type_icon_picker_value(&$element, $input = FALSE, &$form_state = array()) {
+  if ($input !== FALSE && isset($input['icon']) && strpos($input['icon'], '|') !== FALSE) {
+    list($bundle, $icon) = explode('|', $input['icon']);
+    $parents = $element['#parents'];
+    drupal_array_set_nested_value($form_state['values'], array_merge($element['#parents'], array('bundle')), $bundle, TRUE);
+    drupal_array_set_nested_value($form_state['values'], array_merge($element['#parents'], array('icon')), $icon, TRUE);
+  }
 }
 
 /**

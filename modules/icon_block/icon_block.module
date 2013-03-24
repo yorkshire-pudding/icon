@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Implements hook_permissions().
+ * Implements hook_permission().
  */
 function icon_block_permission() {
   return array(
@@ -19,7 +19,7 @@ function icon_block_defaults() {
   return array(
     'icon' => '',
     'position' => 'title_before',
-    'bundle' => NULL,
+    'bundle' => icon_bundle_defaults(),
   );
 }
 /*
@@ -33,7 +33,7 @@ function icon_block_preprocess_block(&$variables) {
   if (isset($block->theme)) {
     $theme = $block->theme;
   }
-  $icon = array_merge(icon_block_defaults(icon_bundle_load($theme)), isset($block->icon) ? unserialize($block->icon) : array());
+  $icon = array_merge(icon_block_defaults(icon_bundle_load($theme)), isset($block->icon) ? (array) unserialize($block->icon) : array());
   $bundle = $icon['bundle'];
   if (!empty($icon['icon']) && isset($bundle['icons'][$icon['icon']])) {
     $icon = theme('icon_icon', array('icon' => $icon['icon'], 'bundle' => $bundle));
@@ -62,19 +62,18 @@ function icon_block_form_alter(&$form, &$form_state, $form_id) {
     elseif (arg(5) === 'add') {
       $theme = arg(4);
     }
-    $settings = array_merge(icon_block_defaults(), isset($block->icon) ? unserialize($block->icon) : array());
-    // Add the icon form element.
-    $form['settings']['icon'] = array(
-      '#type' => 'icon',
-      '#title' => t('Insert Icon'),
+    $settings = array_merge(icon_block_defaults(), isset($block->icon) ? (array) unserialize($block->icon) : array());
+    // Add an icon picker form element.
+    $form['settings']['icon_picker'] = array(
+      '#type' => 'icon_picker',
       '#bundle' => $settings['bundle'],
       '#icon' => $settings['icon'],
     );
     // Additional configuration on where to place the icon in the block.
-    $icon_state = array('invisible' => array(':input[name="icon[icon]"]' => array('value' => '')));
-    $form['settings']['icon']['position'] = array(
+    $icon_state = array('invisible' => array(':input[name="icon_picker[icon]"]' => array('value' => '')));
+    $form['settings']['icon_picker']['position'] = array(
       '#type' => 'select',
-      '#title' => t('Render icon:'),
+      '#title' => t('Block Position:'),
       '#options' => array(
         'title_before' => t('Before title'),
         'title_after' => t('After title'),
@@ -99,8 +98,8 @@ function icon_block_form_submit($form, &$form_state) {
     $module = $form_state['values']['module'];
     $delta = $form_state['values']['delta'];
     // Update block icon settings.
-    if (isset($form_state['values']['icon'])) {
-      db_merge('block')->key(array('module' => $module, 'delta' => $delta))->fields(array('icon' => serialize($form_state['values']['icon'])))->execute();
+    if (isset($form_state['values']['icon_picker'])) {
+      db_merge('block')->key(array('module' => $module, 'delta' => $delta))->fields(array('icon' => serialize($form_state['values']['icon_picker'])))->execute();
     }
   }
 }
