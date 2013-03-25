@@ -41,11 +41,12 @@ function icon_clear_all_caches() {
  */
 function icon_reset_static_cache() {
   $functions = array(
-    'icon_render_hooks',
     'icon_bundles',
     'icon_bundle_load',
     'icon_extension_hook',
     'icon_extension_implements',
+    'icon_find_theme_include',
+    'icon_render_hooks',
   );
   foreach ($functions as $function) {
     drupal_static_reset($function);
