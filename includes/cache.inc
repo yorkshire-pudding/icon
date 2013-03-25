@@ -6,33 +6,50 @@
  */
 
 /**
+ * Provides an array of cache bins used by this module.
+ */
+function icon_cache_bins() {
+  return array(
+    'cache_icon_bundles',
+  );
+}
+
+/**
  * Implements hook_flush_caches().
  */
 function icon_flush_caches() {
-  $caches = array();
-  $tables = array('cache_icon_bundles');
-  foreach ($tables as $table) {
-    if (db_table_exists($table)) {
-      $caches[] = $table;
-    }
-  }
-  return $caches;
+  icon_clear_all_caches();
+  return array();
 }
 
+/**
+ * Clears all caches used by the icon module.
+ */
 function icon_clear_all_caches() {
-  foreach (icon_flush_caches() as $bin) {
+  foreach (icon_cache_bins() as $bin) {
     cache_clear_all('*', $bin, TRUE);
   }
   cache_clear_all('icon_', 'cache', TRUE);
   icon_reset_static_cache();
+  // Rebuild icon caches.
+  icon_render_hooks();
+  icon_bundles();
 }
 
+/**
+ * Clears all static caches used by the icon module.
+ */
 function icon_reset_static_cache() {
-  drupal_static_reset('icon_render_hooks');
-  drupal_static_reset('icon_bundles');
-  drupal_static_reset('icon_bundle_load');
-  drupal_static_reset('icon_extension_hook');
-  drupal_static_reset('icon_extension_implements');
+  $functions = array(
+    'icon_render_hooks',
+    'icon_bundles',
+    'icon_bundle_load',
+    'icon_extension_hook',
+    'icon_extension_implements',
+  );
+  foreach ($functions as $function) {
+    drupal_static_reset($function);
+  }
 }
 
 /**
