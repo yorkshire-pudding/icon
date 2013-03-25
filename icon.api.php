@@ -11,76 +11,111 @@
  */
 
 /**
- * Define information about icon providers and bundles.
+ * Define render hook information.
  *
- * @return $providers
- *   An associative array containing the provider details, each containing a collection of bundles.
- * @see lullacons_icon_info()
+ * @return $hooks
+ *   An associative array containing:
+ *   - render_name: A unique machine name. An associative array containing:
+ *     - file: Optional, file where the preprocessing and theming hooks are
+ *       defined. If omitted, this will fall back to the .module or template.php
+ *       file respectively.
+ *     - path: Optional, path where the file above is located. If omitted, this
+ *       will fall back to the module or theme path that implemented this hook.
+ *       This may be obvious to some, but if the path is not the default module
+ *       or theme root path, the file must also be explicitly set.
+ *
+ * @see icon_icon_render_hooks()
  */
-function hook_icon_info() {
-  $providers['provider_machine_name'] = array(
-    // title: optional, human readable title for the provider. Defaults to provider_machine_name.
-    'title' => t('My Provider Name'),
-    // url: optional, URL the points to more information about the provider. Used on the icon overview page.
-    'url' => 'http://example.com/icons_provided',
-    // file: optional, name of the file where the preprocessing and theming functions reside. By default this is the .module file.
-    'file' => 'bundles.inc',
-    // path: optional, path to where the file above is located. It is by default the path of the module that implements this hook.
-    'path' => drupal_get_path('module', 'my_module') . '/includes',
-    // bundles: required, associative array containing the following structure.
-    'bundles' => array(
-      'bundle_machine_name' => array(
-        // title: optional, human readable title for the bundle. Defaults to bundle_machine_name.
-        'title' => t('My Bundle'),
-        // icons: required, associative array with the icon machine name set as the key.
-        // This array can be structured to your liking. You must, however, ensure
-        // that the theme callback understands the structure that is created here.
-        'icons' => array(
-          'alert', // Icon names (filenames, without extension)
-          'info',
-          'warning',
-        ),
-        // import: optional, declare that this bundle supports importing a compressed archive file.
-        'import' => FALSE, // or TRUE,
-        // settings: optional, associative array of default settings.
-        'settings' => array(),
-      ),
+function hook_icon_render_hooks() {
+  $hooks['image'] = array(
+    'file' => 'icon.render.inc',
+    'path' => drupal_get_path('module', 'icon') . '/includes',
+  );
+  // $hooks['sprite'] = array();
+  return $hooks;
+}
+
+/**
+ * Modify icon render hooks before they become cached.
+ */
+function hook_icon_render_hooks_alter(&$hooks) {
+}
+
+/**
+ * Define information about icon bundles.
+ *
+ * @return $bundles
+ *   An associative array containing:
+ *   - bundle_name: A unique machine name. An associative array containing:
+ *     - render: Required, name of the rendering hook this bundle should use.
+ *       If omitted or the rendering hook is not implemented, then this bundle
+ *       will be ignored.
+ *     - icons: Required, an array containing icon data. The structure of this
+ *       array entirely depends on which render hook is being used. If unsure,
+ *       study the render hook's theme_icon_RENDER() implementation.
+ *     - title: Optional, human readable title for the bundle. If omitted, it
+ *       will fall back to using the bundle_name.
+ *     - provider: Optional, name of the bundle provider. If omitted, it will
+ *       fall back to using the module name that implements this hook.
+ *     - url: Optional, URL for more information regarding the bundle.
+ *     - version: Optional, supplemental information for identifying the bundle's
+ *       revision iteration.
+ *     - path: Optional, path to where the bundle's resource files are located.
+ *       If omitted, it will fall back to using the path of the module that
+ *       implements this hook.
+ *     - import: Optional, a boolean that informs the API that this bundle supports
+ *       dynamic bundles by uploading compressed archive files.
+ *     - settings: Optional, an array containing setting data. The structure of
+ *       this array entirely depends on which render hook is be used. If unsure,
+ *       study the render hook's theme_icon_RENDER() implementation.
+ *
+ * @see icon_icon_bundles()
+ */
+function hook_icon_bundles() {
+  $bundles['my_bundle'] = array(
+    'render' => 'image',
+    'title' => t('My Bundle'),
+    'provider' => t('ACME Inc.'),
+    'url' => 'http://example.com/about_my_bundle',
+    'version' => 'v2',
+    'path' => drupal_get_path('module', 'my_module') . '/icons',
+    'import' => TRUE, // or FALSE,
+    'icons' => array(
+      'alert', // Icon names (filenames, without extension)
+      'info',
+      'warning',
+    ),
+    'settings' => array(
+      'extension' => 'gif', // Defaults to 'png' for the render type: image.
     ),
   );
-  return $providers;
+  return $bundles;
 }
 
 /**
- * Modify icon information before it gets cached.
- */
-function hook_icon_info_alter(&$info) {
-}
-
-/**
- * Modify icon bundles before it gets cached.
+ * Modify icon bundles before they become cached.
  */
 function hook_icon_bundles_alter(&$bundle) {
 }
 
 /**
- * Modify icon providers before it gets cached.
+ * Implements hook_preprocess_icon_RENDER_HOOK().
+ * @see icon_preprocess_icon_image()
  */
-function hook_icon_providers_alter(&$info) {
-}
-
-/**
- * Implements hook_preprocess_icon_PROVIDER().
- * @see lullacons_preprocess_icon_lullabot()
- */
-function hook_preprocess_icon_PROVIDER(&$variables) {
+function hook_preprocess_icon_RENDER_HOOK(&$variables) {
+  $bundle = &$variables['bundle'];
+  $icon = &$variables['icon'];
+  if (!isset($bundle['settings']['extension'])) {
+    $bundle['settings']['extension'] = 'png';
+  }
   // Add custom classes here.
-  $variables['attributes']['class'][] = 'custom-class';
+  $variables['attributes']['class'][] = $icon;
 }
 
 /**
- * Implements hook_process_icon_PROVIDER().
+ * Implements hook_process_icon_RENDER_HOOK().
  */
-function hook_process_icon_PROVIDER(&$variables) {
+function hook_process_icon_RENDER_HOOK(&$variables) {
   // Not likely used, but available nonetheless.
 }
 
@@ -129,24 +164,54 @@ function hook_icon_bundle_import_submit($form, &$form_state) {
  */
 
 /**
- * Implements theme_icon_PROVIDER().
- * Returns an image of the requested icon.
+ * Implements theme_icon().
+ * Pass the theming responsibility to the proper render hook.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - attributes: Associative array of HTML attributes.
+ *   - bundle: An associative array containing various properties.
+ *   - icon: Name of the icon requested from the above bundle.
+ *
+ * @return HTML markup for the requested icon.
+ *
+ * @see hook_icon_bundles()
  */
-function theme_icon_PROVIDER($variables) {
+function theme_icon($variables) {
+  $bundle = $variables['bundle'];
+  $icon = $variables['icon'];
+  if (!empty($bundle) && !empty($icon)) {
+    return theme('icon_' . $bundle['render'], $variables);
+  }
+}
+
+/**
+ * Implements theme_icon_RENDER_HOOK().
+ * Return an image of the requested icon.
+ *
+ * @param $variables
+ *   An associative array containing:
+ *   - attributes: Associative array of HTML attributes.
+ *   - bundle: An associative array containing various properties.
+ *   - icon: Name of the icon requested from the above bundle.
+ *
+ * @return HTML markup for the requested icon.
+ *
+ * @see hook_icon_bundles()
+ * @see theme_icon_image()
+ */
+function theme_icon_RENDER_HOOK($variables) {
   $output = '';
   $bundle = $variables['bundle'];
   $icon = $variables['icon'];
-  // If you have only one bundle, you can ommit the if statement.
-  if ($bundle['name'] === 'my_bundle') {
-    $path = drupal_get_path('module', 'my_module') . '/icons/' . $icon . '.png';
-    if ($info = image_get_info($path)) {
-      $output = theme('image', array(
-        'path' => $path,
-        'height' => $info['height'],
-        'width' => $info['width'],
-        'attributes' => $variables['attributes'],
-      ));
-    }
+  $image = $bundle['path'] . '/' . $icon . '.' . $bundle['settings']['extension'];
+  if (file_exists($image) && ($info = image_get_info($image))) {
+    $output = theme('image', array(
+      'path' => $image,
+      'height' => $info['height'],
+      'width' => $info['width'],
+      'attributes' => $variables['attributes'],
+    ));
   }
   return $output;
 }
@@ -168,16 +233,19 @@ function theme_icon_PROVIDER($variables) {
  * 
  * @param string #type
  *   The type of element to render, must be: icon_selector.
- * @param string #title (optional, default: "Icon")
- *   The title of the fieldset.
- * @param boolean #collapsible (optional, default: TRUE)
- *   Determine whether the fieldset is collapsible.
- * @param boolean #collapsed (optional, default: FALSE)
- *   Determine whether the fieldset should initialize in a collapsed state.
- * @param string #default_bundle (optional)
- *   Machine name of the default bundle to initialize with.
- * @param string #default_icon (optional)
- *   Machine name of the default icon to initialize with.
+ * @param string #title
+ *   Optional, the title of the fieldset.
+ *   Default, "Icon".
+ * @param boolean #collapsible
+ *   Optional, determine whether the fieldset is collapsible.
+ *   Default, TRUE.
+ * @param boolean #collapsed
+ *   Optional, determine whether the fieldset should initialize in a collapsed state.
+ *   Default, FALSE.
+ * @param string #default_bundle
+ *   Optional, machine name of the default bundle to initialize with.
+ * @param string #default_icon
+ *   Optional, machine name of the default icon to initialize with.
  *  
  * @see icon_block_form_alter()
  * @see icon_block_form_submit()
