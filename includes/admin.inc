@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @file icon.admin.inc
+ * @file admin.inc
  * Provides administrative callbacks and tasks.
  */
 
@@ -17,16 +17,14 @@ function icon_bundle_overview() {
     t('Operations'),
   );
   $rows = array();
-  foreach (icon_info() as $provider) {
-    foreach ($provider['bundles'] as $bundle) {
-      $row = array(
-        $bundle['title'],
-        !empty($provider['url']) ? l($provider['title'], $provider['url']) : $provider['title'],
-        count($bundle['icons']),
-        '',
-      );
-      $rows[] = $row;
-    }
+  foreach (icon_bundles() as $bundle) {
+    $row = array(
+      $bundle['title'] . (!empty($bundle['version']) ? ' (' . $bundle['version'] . ')' : ''),
+      !empty($bundle['url']) ? l($bundle['provider'], $bundle['url']) : $bundle['provider'],
+      count($bundle['icons']),
+      '',
+    );
+    $rows[] = $row;
   }
   $build['bundles'] = array(
     '#theme' => 'table',

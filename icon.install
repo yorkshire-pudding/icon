@@ -11,8 +11,6 @@
 function icon_schema() {
   $schema['cache_icon_bundles'] = drupal_get_schema_unprocessed('system', 'cache');
   $schema['cache_icon_bundles']['description'] = 'Cache table to store icon bundle information.';
-  $schema['cache_icon_providers'] = drupal_get_schema_unprocessed('system', 'cache');
-  $schema['cache_icon_providers']['description'] = 'Cache table to store icon provider information.';
   return $schema;
 }
 

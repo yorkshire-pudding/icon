@@ -86,7 +86,7 @@ function hook_icon_bundles() {
       'warning',
     ),
     'settings' => array(
-      'extension' => 'gif', // Defaults to 'png' for the render type: image.
+      'extension' => 'gif', // Defaults to 'png' for the render hook: image.
     ),
   );
   return $bundles;

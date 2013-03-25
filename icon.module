@@ -5,38 +5,15 @@
  * Implements an API for icon providers and administrative UI for integrating icons through out the site.
  */
 
-/**
- * Implements hook_element_info().
- */
-function icon_element_info() {
-  $types['icon_selector'] = array(
-    '#input' => TRUE,
-    '#tree' => TRUE,
-    '#title' => t('Icon'),
-    '#collapsible' => TRUE,
-    '#collapsed' => FALSE,
-    '#default_bundle' => '',
-    '#default_icon' => '',
-    '#process' => array('form_process_fieldset', 'form_process_icon_selector'),
-    '#pre_render' => array('form_pre_render_fieldset'),
-    '#theme_wrappers' => array('fieldset'),
-    '#attached' => array('library' => array(array('icon', 'icon_selector'))),
-  );
-  return $types;
+// Provide <PHP 5.3 support for the __DIR__ constant.
+if (!defined('__DIR__')) {
+  define('__DIR__', dirname(__FILE__));
 }
-
-/**
- * Implements hook_flush_caches().
- */
-function icon_flush_caches() {
-  $tables = array('cache_icon_bundles', 'cache_icon_providers');
-  $caches = array();
-  foreach ($tables as $table) {
-    if (db_table_exists($table)) {
-      $caches[] = $table;
-    }
-  }
-  return $caches;
+// Include necessary files. Normally these would all be in the main .module
+// file, however it's easier to manage in separate files.
+$includes = array('bundles', 'cache', 'element', 'render', 'theme', 'utilities');
+foreach ($includes as $include) {
+  require_once __DIR__ . '/includes/' . $include . '.inc';
 }
 
 /**
@@ -56,7 +33,7 @@ function icon_library() {
       array(
       'type' => 'setting',
       'data' => array('icon_selector' => array(
-        'bundles' => array_keys(icon_info()),
+        'bundles' => array_keys(icon_bundles()),
       )),
     )),
   );
@@ -67,13 +44,15 @@ function icon_library() {
  * Implements hook_menu().
  */
 function icon_menu() {
+  $module_path = drupal_get_path('module', 'icon');
   $items = array();
   $items['admin/config/user-interface/icons'] = array(
     'title' => 'Icon Bundles',
     'description' =>  'Provides an overview of all icons bundles available for the site.',
     'page callback' => 'icon_bundle_overview',
     'access arguments' => array('administer icons'),
-    'file' => 'icon.admin.inc',
+    'file' => 'admin.inc',
+    'file path' => $module_path . '/includes',
   );
   return $items;
 }
@@ -91,35 +70,64 @@ function icon_permission() {
 }
 
 /**
- * Implements hook_theme().
+ * Returns information about icons render hooks.
+ *
+ * @param $hook
+ *   (optional) The name of the render hook to return information for. If
+ *   omitted, render hook information provided by all modules and themes will
+ *   be returned.
+ * @param $reset
+ *   Boolean to force reset of the cached data. Default: FALSE.
+ *
+ * @return array|false
+ *   An associative array containing render hook information from all modules
+ *   and themes, the information for the render hook specified by $hook, or
+ *   FALSE if the render hook $name is not registered.
+ *
+ * @see hook_icon_render_hooks()
  */
-function icon_theme($existing, $type, $theme, $path) {
-  $hooks['icon'] = array(
-    'variables' => array(
-      'attributes' => array(),
-      'icon' => NULL,
-      'bundle' => NULL,
-    ),
-  );
-  // Add hooks for providers so they can control their own icon output.
-  // Due to a nasty bug in template suggestions and preprocessing, we
-  // can't do something like icon_PROVIDER__BUNDLE and have it be
-  // completely dynamic as it should be.
-  // @see: http://drupal.org/node/956520
-  $providers = array();
-  foreach (icon_info() as $provider) {
-    if (!isset($providers[$provider['name']])) {
-      foreach ($provider['bundles'] as $bundle) {
-        $hooks['icon_' . $provider['name']] = array(
-          'file' => $provider['file'],
-          'path' => $provider['path'],
-          'variables' => array(
-            'attributes' => array(),
-            'icon' => NULL,
-            'bundle' => NULL,
-          ),
-        );
+function &icon_render_hooks($hook = NULL, $reset = FALSE) {
+  $hooks = &drupal_static(__FUNCTION__);
+  if (!isset($hooks) || $reset) {
+    if (!$reset && ($cache = cache_get('icon_render_hooks')) && !empty($cache->data)) {
+      $hooks = $cache->data;
+    }
+    else {
+      $hooks = array();
+      // Gather information from modules and themes that implement
+      // hook_icon_render_hooks().
+      foreach (icon_extension_implements('icon_render_hooks') as $extension => $type) {
+        $extension_hooks = (array) icon_extension_invoke($type, $extension, 'icon_render_hooks');
+        foreach ($extension_hooks as $render_hook => $data) {
+          if (!is_string($render_hook) && is_string($data)) {
+            $render_hook = $data;
+            $data = array();
+          }
+          $data['name'] = $render_hook;
+          $data['type'] = $type;
+          $data[$type] = $extension;
+          if (!isset($data['file'])) {
+            $data['file'] = 'module' === $type ? $extension . '.module' : 'template.php';
+          }
+          if (!isset($data['path'])) {
+            $data['path'] = drupal_get_path($type, $extension);
+          }
+          $hooks[$render_hook] = $data;
+        }
       }
+      // Allow modules or themes to alter render hook information.
+      drupal_alter('icon_render_hooks', $hooks);
+      // Cache the render hook information.
+      cache_set('icon_render_hooks', $hooks);
+    }
+  }
+  if (isset($hook)) {
+    if (!empty($hooks[$hook])) {
+      return $hooks[$hook];
+    }
+    else {
+      $false = FALSE;
+      return $false;
     }
   }
   return $hooks;
@@ -137,125 +145,14 @@ function icon_bundle_defaults(&$bundle = array(), $name = '') {
   $bundle += array(
     'name' => $name,
     'title' => $name,
-    'icons' => array(),
+    'provider' => $name,
+    'url' => '',
+    'version' => '',
     'import' => FALSE,
+    'icons' => array(),
     'settings' => array(),
   );
   return $bundle;
-}
-
-/**
- * Default properties for a provider definition.
- *
- * @param: $provider
- *   An associative array of provider information, passed by reference.
- * @param: $name
- *   The machine name of the provider.
- */
-function icon_provider_defaults(&$provider = array(), $name = '') {
-  $provider += array(
-    'name' => $name,
-    'title' => $name,
-    'url' => '',
-    'bundles' => array(),
-  );
-  return $provider;
-}
-
-/**
- * Returns information about icons provided by modules and themes.
- *
- * @param $name
- *   (optional) The module or theme name of an icon provider to return
- *   information for. If omitted, information provided by all modules
- *   and themes is returned.
- * @param $reset
- *   Boolean to force reset of the cached data. Default: FALSE.
- *
- * @return array|false
- *   An associative array containing information for all modules and
- *   themes that provide icons, the information for the provider
- *   specified by $name, or FALSE if the module or theme $name does
- *   not provide any icons.
- *
- * @see hook_icon_info()
- */
-function &icon_info($name = NULL, $reset = FALSE) {
-  $info = &drupal_static(__FUNCTION__);
-  if (!isset($info) || $reset) {
-    if (!$reset && ($cache = cache_get('icon_info')) && !empty($cache->data)) {
-      $info = $cache->data;
-    }
-    else {
-      $info = array();
-      $providers = array();
-      // Gather information from module providers that implement hook_icon_info().
-      foreach (module_implements('icon_info') as $module) {
-        $data = module_invoke($module, 'icon_info');
-        foreach ($data as $provider_name => $provider) {
-          $provider['type'] = 'module';
-          $provider['module'] = $module;
-          if (!isset($provider['file'])) {
-            $provider['file'] = $module . '.module';
-          }
-          if (!isset($provider['path'])) {
-            $provider['path'] = drupal_get_path('module', $module);
-          }
-        }
-        $providers[$provider_name] = $provider;
-      }
-      // Gather information from theme providers that implement hook_icon_info().
-      // @see drupal_alter()
-      global $theme, $base_theme_info;
-      if (isset($theme)) {
-        $theme_keys = array();
-        foreach ($base_theme_info as $base) {
-          $theme_keys[] = $base->name;
-        }
-        $theme_keys[] = $theme;
-        foreach ($theme_keys as $theme_key) {
-          $function = $theme_key . '_' . 'icon_info';
-          if (function_exists($function)) {
-            $data = $function();
-            foreach ($data as $provider_name => $provider) {
-              $provider['type'] = 'theme';
-              $provider['theme'] = $theme_key;
-              if (!isset($provider['file'])) {
-                $provider['file'] = 'template.php';
-              }
-              if (!isset($provider['path'])) {
-                $provider['path'] = drupal_get_path('theme', $theme_key);
-              }
-              $providers[$provider_name] = $provider;
-            }
-          }
-        }
-      }
-      // Process the providers.
-      foreach ($providers as $provider_name => &$provider) {
-        icon_provider_defaults($provider, $provider_name);
-        foreach ($provider['bundles'] as $bundle_name => &$bundle) {
-          icon_bundle_defaults($bundle, $bundle_name);
-          $bundle['provider'] = $provider_name;
-        }
-        $info[$provider_name] = $provider;
-      }
-      // Allow modules or themes to alter the info.
-      drupal_alter('icon_info', $info);
-      // Cache the info.
-      cache_set('icon_info', $info);
-    }
-  }
-  if (isset($name)) {
-    if (!empty($info[$name])) {
-      return $info[$name];
-    }
-    else {
-      $false = FALSE;
-      return $false;
-    }
-  }
-  return $info;
 }
 
 /**
@@ -279,8 +176,11 @@ function icon_bundles($name = NULL, $reset = FALSE) {
     }
     else {
       $bundles = array();
-      foreach (icon_info() as $provider_name => $provider) {
-        foreach ($provider['bundles'] as $bundle_name => $bundle) {
+      
+      foreach (icon_extension_implements('icon_bundles') as $extension => $type) {
+        $extension_bundles = (array) icon_extension_invoke($type, $extension, 'icon_bundles');
+        foreach ($extension_bundles as $bundle_name => $bundle) {
+          icon_bundle_defaults($bundle, $bundle_name);
           $bundles[$bundle_name] = $bundle;
         }
       }
@@ -325,167 +225,4 @@ function icon_bundle_load($name) {
     }
   }
   return $loaded[$name];
-}
-
-/**
- * Returns information about all icon providers.
- *
- * @param $name
- *   The name of the provider to load.
- * @param $reset
- *   Boolean to force reset of the cached data. Default: FALSE.
- *
- * @return array|false
- *   An associative array containing information for all providers.
- *
- * @see hook_icon_info()
- */
-function icon_providers($name = NULL, $reset = FALSE) {
-  $providers = &drupal_static(__FUNCTION__);
-  if (!isset($bundles) || $reset) {
-    if (!$reset && ($cache = cache_get('icon_providers')) && !empty($cache->data)) {
-      $providers = $cache->data;
-    }
-    else {
-      $providers = array();
-      foreach (icon_info() as $provider_name => $provider) {
-        // Only save the bundle names here, no need to cache the entire bundle.
-        // @see: icon_bundles() or icon_bundle_load().
-        $provider['bundles'] = array_keys($provider['bundles']);
-        $providers[$provider_name] = $provider;
-      }
-      // Allow modules or themes to alter the providers.
-      drupal_alter('icon_providers', $providers);
-      // Cache the info.
-      cache_set('icon_providers', $providers);
-    }
-  }
-  if (isset($name)) {
-    if (!empty($providers[$name])) {
-      return $providers[$name];
-    }
-    else {
-      $false = FALSE;
-      return $false;
-    }
-  }
-  return $providers;
-}
-
-/**
- * Load a specific provider.
- *
- * @param $name
- *   The name of the provider to load.
- *
- * @return
- *   An associative array of provider information as returned from
- *   icon_providers().
- */
-function icon_provider_load($name) {
-  $loaded = &drupal_static(__FUNCTION__, array());
-  if (!isset($loaded[$name])) {
-    if (($cache = cache_get($name, 'cache_icon_providers')) && !empty($cache->data)) {
-      $loaded[$name] = $cache->data;
-    }
-    else {
-      $provider = icon_providers($name);
-      cache_set($name, $provider, 'cache_icon_providers');
-      $loaded[$name] = $provider;
-    }
-  }
-  return $loaded[$name];
-}
-
-/**
- * Processes an icon select list form element.
- */
-function form_process_icon_selector($element) {
-  // Get default values.
-  $default_bundle = isset($element['#default_bundle']) ? $element['#default_bundle'] : icon_bundle_defaults();
-  if (!is_array($default_bundle)) {
-    $default_bundle = icon_bundle_load($default_bundle);
-  }
-  $default_icon = isset($element['#default_icon']) ? $element['#default_icon'] : '';
-  $default_value = '';
-  if ($default_bundle && !empty($default_bundle['name']) && !empty($default_icon)) {
-    $default_value = $default_bundle['name'] . '|' . $default_icon;
-  }
-  // Build the options array for available icons per bundle.
-  $options = array();
-  foreach (icon_bundles() as $bundle_name => $bundle) {
-    foreach ($bundle['icons'] as $icon_name => $icon) {
-      $icon_name = is_string($icon_name) ? $icon_name : $icon;
-      if (is_array($icon_name) && isset($icon_name['name'])) {
-        $icon_name = $icon_name['name'];
-      }
-      $icon_title = is_string($icon_name) ? $icon_name : $icon;
-      if (is_array($icon_title) && isset($icon_title['title'])) {
-        $icon_title = $icon_title['title'];
-      }
-      $options[$bundle['title']][$bundle['name'] . '|' . $icon_name] = $icon_title;
-    }
-  }
-  $element['icon'] = array(
-    '#title' => t('Select Icon'),
-    '#type' => 'select',
-    '#options' => $options,
-    '#default_value' => $default_value,
-    '#empty_option' => '- No Icon -',
-    '#weight' => -10,
-  );
-  if (isset($element['#default_value'])) {
-    $element['icon']['#default_value'] = $element['#default_value'];
-  }
-  return $element;
-}
-
-/**
- * Implements form_type_ELEMENT_value().
- * Value callback for the 'icon_selector' element.
- */
-function form_type_icon_selector_value(&$element, $input = FALSE, &$form_state = array()) {
-  if ($input !== FALSE && isset($input['icon']) && strpos($input['icon'], '|') !== FALSE) {
-    list($bundle, $icon) = explode('|', $input['icon']);
-    $parents = $element['#parents'];
-    drupal_array_set_nested_value($form_state['values'], array_merge($element['#parents'], array('bundle')), $bundle, TRUE);
-    drupal_array_set_nested_value($form_state['values'], array_merge($element['#parents'], array('icon')), $icon, TRUE);
-  }
-}
-
-/**
- * Implements hook_preprocess_icon().
- */
-function template_preprocess_icon(&$variables) {
-  $bundle = &$variables['bundle'];
-  $icon = &$variables['icon'];
-  if (empty($bundle) || empty($icon)) {
-    return;
-  }
-  if (is_string($bundle)) {
-    $bundle = icon_bundle_load($bundle);
-  }
-  // Check to see if icon is part of the bundle.
-  if (!$bundle || !(isset($bundle['icons'][$icon]) || in_array($icon, $bundle['icons']))) {
-    $bundle = FALSE;
-    $icon = FALSE;
-    return;
-  }
-  // Add default icon class.
-  $attributes = &$variables['attributes'];
-  if (!isset($attributes['class'])) {
-    $attributes['class'] = array();
-  }
-  $attributes['class'][] = 'icon';
-}
-
-/**
- * Theming responsibility is passed to the bundle provider.
- */
-function theme_icon($variables) {
-  $bundle = $variables['bundle'];
-  $icon = $variables['icon'];
-  if (!empty($bundle) && !empty($icon)) {
-    return theme('icon_' . $bundle['provider'], $variables);
-  }
 }
