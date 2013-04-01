@@ -26,8 +26,8 @@ function icon_extension_hook($type, $extension, $hook) {
     if ('module' === $type) {
       drupal_load($type, $extension);
     }
-    // Themes cannot be loaded via drupal_load(), instead the theme's icon file
-    // must be loaded.
+    // Themes cannot be loaded via drupal_load(), instead the theme's include
+    // file must be loaded.
     elseif ('theme' === $type && ($include = icon_find_theme_include($extension))) {
       include_once $include;
     }
@@ -136,7 +136,7 @@ function icon_find_theme_include($theme) {
   if (!isset($themes[$theme])) {
     $themes[$theme] = FALSE;
     if (!isset($includes)) {
-      $includes = array_keys(drupal_system_listing('/icon.inc$/', 'themes', 'uri', 0));
+      $includes = array_keys(drupal_system_listing('/icon.inc|icons.inc$/', 'themes', 'uri', 0));
     }
     foreach ($includes as $uri) {
       if (strpos($uri, drupal_get_path('theme', $theme)) !== FALSE) {

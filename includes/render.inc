@@ -16,6 +16,10 @@ function icon_icon_render_hooks() {
     'file' => 'render.inc',
     'path' => drupal_get_path('module', 'icon') . '/includes',
   );
+  $hooks['sprite'] = array(
+    'file' => 'render.inc',
+    'path' => drupal_get_path('module', 'icon') . '/includes',
+  );
   return $hooks;
 }
 
@@ -50,4 +54,38 @@ function theme_icon_image($variables) {
     ));
   }
   return $output;
+}
+
+/**
+ * Implements hook_preprocess_icon_RENDER_HOOK().
+ */
+function icon_preprocess_icon_sprite(&$variables) {
+  $bundle = &$variables['bundle'];
+  $icon = &$variables['icon'];
+  // Add default settings
+  if (!isset($bundle['settings']['tag'])) {
+    $bundle['settings']['tag'] = 'span';
+  }
+  if (!isset($bundle['settings']['content'])) {
+    $bundle['settings']['content'] = '';
+  }
+  // Add additional libraries, CSS, JavaScript an other custom
+  // attached data associated with this bundle.
+  if (!empty($bundle['settings']['#attached'])) {
+    drupal_process_attached($bundle['settings']);
+  }
+  // Add custom classes here.
+  $variables['attributes']['class'][] = $icon;
+}
+
+/**
+ * Implements theme_icon_RENDER_HOOK().
+ * Return a tag with sprite class name of requested icon.
+ */
+function theme_icon_sprite($variables) {
+  $bundle = $variables['bundle'];
+  $icon = $variables['icon'];
+  $tag = $bundle['settings']['tag'];
+  $content = $bundle['settings']['content'];
+  return '<' . $tag . drupal_attributes($variables['attributes']) . '>' . $content . '</' . $tag . '>';
 }
