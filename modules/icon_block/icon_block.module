@@ -23,8 +23,9 @@ function icon_block_defaults() {
   );
 }
 
-/*
- * Extend block's classes with any user defined classes.
+/**
+ * Implements hook_preprocess_block().
+ * Add icon to blocks if necessary.
  */
 function icon_block_preprocess_block(&$variables) {
   $block = &$variables['block'];

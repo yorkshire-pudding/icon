@@ -8,4 +8,3 @@ files[] = icon_menu.module
 
 dependencies[] = icon
 dependencies[] = menu
-dependencies[] = not_yet_built

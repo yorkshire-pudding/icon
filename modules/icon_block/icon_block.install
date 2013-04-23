@@ -20,14 +20,14 @@ function icon_block_install() {
  * Implements hook_uninstall().
  */
 function icon_block_uninstall() {
-  // Drop block field in database.
+  // Drop icon field from {block} table in database.
   db_drop_field('block', 'icon');
 }
 
 /**
  * Implements hook_schema_alter().
  *
- * Add block table icon field.
+ * Add icon field to {block} table in database.
  */
 function icon_block_schema_alter(&$schema) {
   $schema['block']['fields']['icon'] = array(
