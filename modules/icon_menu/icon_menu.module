@@ -17,15 +17,33 @@ function icon_menu_permission() {
  */
 function icon_menu_defaults() {
   return array(
+    'bundle' => '',
     'icon' => '',
+    'breadcrumb' => FALSE,
     'position' => 'title_before',
     'title_wrapper' => 0,
     'title_wrapper_element' => 'span',
     'title_wrapper_class' => 'title',
-    'bundle' => '',
   );
 }
 
+/**
+ * Implements hook_menu_breadcrumb_alter().
+ */
+function icon_menu_menu_breadcrumb_alter(&$active_trail, &$item) {
+  foreach ($active_trail as $key => $value) {
+    if (!empty($value['localized_options']['icon']) && empty($value['localized_options']['icon']['breadcrumb'])) {
+      unset($active_trail[$key]['localized_options']['icon']);
+    }
+  }
+  if (!empty($item['localized_options']['icon']) && empty($item['localized_options']['icon']['breadcrumb'])) {
+    unset($item['localized_options']['icon']);
+  }
+}
+
+/**
+ * Implements hook_preprocess_link().
+ */
 function icon_menu_preprocess_link(&$variables) {
   if (!empty($variables['options']) && !empty($variables['options']['icon']) && !empty($variables['options']['icon']['bundle']) && !empty($variables['options']['icon']['icon'])) {
     $settings =  $variables['options']['icon'];
@@ -81,16 +99,22 @@ function icon_menu_form_node_form_alter(&$form, $form_state) {
 function _icon_menu_form_alter(array &$form, array $item = array(), array &$complete_form) {
   $form['options']['#tree'] = TRUE;
   $form['options']['#weight'] = 50;
+  // Unset the previous value so that the new values get saved.
+  if (isset($form['options']['#value']['icon'])) {
+    unset($form['options']['#value']['icon']);
+  }
+  // Determine proper parent names for states.  
   $parents = 'options[icon]';
   if (isset($complete_form['menu']['link']) && isset($complete_form['#node']->menu)) {
     $parents = 'menu[options][icon]';
   }
-  $settings = array_merge(icon_menu_defaults(), !empty($item['options']['icon']) ? $item['options']['icon'] : array());
+  // Get the default values.
+  $defaults = array_merge(icon_menu_defaults(), !empty($item['options']['icon']) ? $item['options']['icon'] : array());
   // Add an icon selector input element.
   $form['options']['icon'] = array(
     '#type' => 'icon_selector',
-    '#default_bundle' => $settings['bundle'],
-    '#default_icon' => $settings['icon'],
+    '#default_bundle' => $defaults['bundle'],
+    '#default_icon' => $defaults['icon'],
   );
   // Additional configuration on where to place the icon in the block.
   $icon_state = array('invisible' => array(':input[name="' . $parents . '[icon]"]' => array('value' => '')));
@@ -102,14 +126,21 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
       'title_before' => t('Before title'),
       'title_after' => t('After title'),
     ),
-    '#default_value' => $settings['position'],
+    '#default_value' => $defaults['position'],
+    '#states' => $icon_state,
+  );
+  $form['options']['icon']['breadcrumb'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show in breadcrumbs'),
+    '#description' => t('Choose whether to show the icon in breadcrumb links.'),
+    '#default_value' => $defaults['breadcrumb'],
     '#states' => $icon_state,
   );
   $form['options']['icon']['title_wrapper'] = array(
     '#type' => 'checkbox',
     '#title' => t('Title Wrapper'),
     '#description' => t('Choose whether to wrap the title in a element tag or not.'),
-    '#default_value' => $settings['title_wrapper'],
+    '#default_value' => $defaults['title_wrapper'],
     '#states' => $icon_state,
   );
   $wrap_state = array(
@@ -124,7 +155,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
     '#type' => 'select',
     '#title' => t('Title Wrapper Element'),
     '#description' => t('The type of element to use for the title wrapper.'),
-    '#default_value' => $settings['title_wrapper_element'],
+    '#default_value' => $defaults['title_wrapper_element'],
     '#options' => array(
       'span' => '<span/>',
       'div' => '<div/>',
@@ -135,7 +166,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
     '#type' => 'textfield',
     '#title' => t('Title Wrapper Class'),
     '#description' => t('The classes to apply to the title wrapper'),
-    '#default_value' => $settings['title_wrapper_class'],
+    '#default_value' => $defaults['title_wrapper_class'],
     '#states' => $wrap_state,
   );
 }
