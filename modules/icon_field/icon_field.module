@@ -119,11 +119,12 @@ function icon_field_field_formatter_view($entity_type, $entity, $field, $instanc
   $elements = array();
   foreach ($items as $delta => $item) {
     if ($display['settings']['link_to_content']) {
+      $uri = entity_uri($entity_type, $entity);
       $elements[$delta] = array(
         '#theme' => 'link',
-        '#path' => entity_uri($entity_type, $entity),
+        '#path' => $uri['path'],
         '#text' => theme('icon', array('bundle' => $item['bundle'], 'icon' => $item['icon'])),
-        '#options' => array('html' => TRUE),
+        '#options' => array('html' => TRUE, 'attributes' => array()),
       );
     }
     else {
