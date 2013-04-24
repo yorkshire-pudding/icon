@@ -153,6 +153,24 @@ function hook_icon_bundle_import_validate($form, &$form_state) {
 function hook_icon_bundle_import_submit($form, &$form_state) {
 }
 
+/**
+ * Allows modules to be grouped together with Icon API on the permissions table.
+ * 
+ * @return The same type of array in hook_permission().
+ *
+ * @see icon_permission()
+ * @see icon_block_icon_permission()
+ * @see hook_permission()
+ */
+function hook_icon_permission() {
+  return array(
+    'administer block icons' => array(
+      'title' => t('Administer block icons'),
+      'description' => t('Grants selected roles the ability to administer icons in blocks.'),
+    ),
+  );
+}
+
 /*
  * @} End of "addtogroup hooks".
  */

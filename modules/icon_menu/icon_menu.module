@@ -1,13 +1,13 @@
 <?php
 
 /**
- * Implements hook_permission().
+ * Implements hook_icon_permission().
  */
-function icon_menu_permission() {
+function icon_menu_icon_permission() {
   return array(
     'administer menu icons' => array(
       'title' => t('Administer menu icons'),
-      'description' => t('Administer menu icon settings.'),
+      'description' => t('Grants selected roles the ability to administer icons in menu items.'),
     ),
   );
 }
@@ -97,6 +97,7 @@ function icon_menu_form_node_form_alter(&$form, $form_state) {
  *   The optional existing menu item for context.
  */
 function _icon_menu_form_alter(array &$form, array $item = array(), array &$complete_form) {
+  $access = user_access('administer icons') || user_access('administer menu icons');
   $form['options']['#tree'] = TRUE;
   $form['options']['#weight'] = 50;
   // Unset the previous value so that the new values get saved.
@@ -112,6 +113,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
   $defaults = array_merge(icon_menu_defaults(), !empty($item['options']['icon']) ? $item['options']['icon'] : array());
   // Add an icon selector input element.
   $form['options']['icon'] = array(
+    '#access' => $access,
     '#type' => 'icon_selector',
     '#default_bundle' => $defaults['bundle'],
     '#default_icon' => $defaults['icon'],
@@ -119,6 +121,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
   // Additional configuration on where to place the icon in the block.
   $icon_state = array('invisible' => array(':input[name="' . $parents . '[icon]"]' => array('value' => '')));
   $form['options']['icon']['position'] = array(
+    '#access' => $access,
     '#type' => 'select',
     '#title' => t('Position'),
     '#description' => t('Choose where to position the icon in the menu item.'),
@@ -130,6 +133,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
     '#states' => $icon_state,
   );
   $form['options']['icon']['breadcrumb'] = array(
+    '#access' => $access,
     '#type' => 'checkbox',
     '#title' => t('Show in breadcrumbs'),
     '#description' => t('Choose whether to show the icon in breadcrumb links.'),
@@ -137,6 +141,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
     '#states' => $icon_state,
   );
   $form['options']['icon']['title_wrapper'] = array(
+    '#access' => $access,
     '#type' => 'checkbox',
     '#title' => t('Title Wrapper'),
     '#description' => t('Choose whether to wrap the title in a element tag or not.'),
@@ -152,6 +157,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
     ),
   );
   $form['options']['icon']['title_wrapper_element'] = array(
+    '#access' => $access,
     '#type' => 'select',
     '#title' => t('Title Wrapper Element'),
     '#description' => t('The type of element to use for the title wrapper.'),
@@ -163,6 +169,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
     '#states' => $wrap_state,
   );
   $form['options']['icon']['title_wrapper_class'] = array(
+    '#access' => $access,
     '#type' => 'textfield',
     '#title' => t('Title Wrapper Class'),
     '#description' => t('The classes to apply to the title wrapper'),

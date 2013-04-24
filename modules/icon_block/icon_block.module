@@ -1,13 +1,13 @@
 <?php
 
 /**
- * Implements hook_permission().
+ * Implements hook_icon_permission().
  */
-function icon_block_permission() {
+function icon_block_icon_permission() {
   return array(
     'administer block icons' => array(
       'title' => t('Administer block icons'),
-      'description' => t('Administer block icon settings.'),
+      'description' => t('Grants selected roles the ability to administer icons in blocks.'),
     ),
   );
 }
@@ -48,11 +48,13 @@ function icon_block_preprocess_block(&$variables) {
  * Alter block edit form
  */
 function icon_block_form_alter(&$form, &$form_state, $form_id) {
-  if (($form_id == 'block_admin_configure' || $form_id == 'block_add_block_form') && user_access('administer block icons')) {
+  if ($form_id == 'block_admin_configure' || $form_id == 'block_add_block_form') {
+    $access = user_access('administer icons') || user_access('administer block icons');
     $block = block_load($form['module']['#value'], $form['delta']['#value']);
     $settings = array_merge(icon_block_defaults(), isset($block->icon) ? (array) unserialize($block->icon) : array());
     // Add an icon selector input element.
     $form['settings']['icon_selector'] = array(
+      '#access' => $access,
       '#type' => 'icon_selector',
       '#default_bundle' => $settings['bundle'],
       '#default_icon' => $settings['icon'],
@@ -60,6 +62,7 @@ function icon_block_form_alter(&$form, &$form_state, $form_id) {
     // Additional configuration on where to place the icon in the block.
     $icon_state = array('invisible' => array(':input[name="icon_selector[icon]"]' => array('value' => '')));
     $form['settings']['icon_selector']['position'] = array(
+      '#access' => $access,
       '#type' => 'select',
       '#title' => t('Position'),
       '#options' => array(
@@ -73,7 +76,9 @@ function icon_block_form_alter(&$form, &$form_state, $form_id) {
       '#default_value' => $settings['position'],
       '#states' => $icon_state,
     );
-    $form['#submit'][] = 'icon_block_form_submit';
+    if ($access) {
+      $form['#submit'][] = 'icon_block_form_submit';
+    }
   }
 }
 
