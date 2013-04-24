@@ -69,11 +69,6 @@ function icon_preprocess_icon_sprite(&$variables) {
   if (!isset($bundle['settings']['content'])) {
     $bundle['settings']['content'] = '';
   }
-  // Add additional libraries, CSS, JavaScript an other custom
-  // attached data associated with this bundle.
-  if (!empty($bundle['settings']['#attached'])) {
-    drupal_process_attached($bundle['settings']);
-  }
   // Add custom classes here.
   $variables['attributes']['class'][] = $icon;
 }

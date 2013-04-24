@@ -215,11 +215,27 @@ function icon_bundles($name = NULL, $reset = FALSE) {
       $bundles = $cache->data;
     }
     else {
+      $disabled_bundles = variable_get('icon_disabled_bundles', array());
       $bundles = array();
       foreach (icon_extension_implements('icon_bundles') as $extension => $type) {
         $extension_bundles = (array) icon_extension_invoke($type, $extension, 'icon_bundles');
         foreach ($extension_bundles as $bundle_name => $bundle) {
           icon_bundle_defaults($bundle, $bundle_name);
+          // In cases where themes may provide sprite icons (such as Bootstrap),
+          // we need to specify the theme to use for this bundle. These types
+          // of bundles do not attach a separate CSS file with the bundle and
+          // the sprite classes are instead, generated with the theme's CSS.
+          // @see icon_bundle_get_theme()
+          // @see icon_menu().
+          if ($type === 'theme' && $bundle['render'] === 'sprite' && empty($bundle['#attached']['css'])) {
+            $bundle['theme'] = $extension;
+          }
+          if (in_array($bundle_name, $disabled_bundles)) {
+            $bundle['enabled'] = FALSE;
+          }
+          else {
+            $bundle['enabled'] = TRUE;
+          }
           $bundles[$bundle_name] = $bundle;
         }
       }
@@ -241,12 +257,6 @@ function icon_bundles($name = NULL, $reset = FALSE) {
   return $bundles;
 }
 
-/**
- * Helper function to determine whether a specific bundle is enabled.
- */
-function icon_bundle_enabled($bundle) {
-  return !in_array($bundle['name'], variable_get('icon_disabled_bundles', array()));
-}
 /**
  * Helper function to return the theme necessary for displaying a list of
  * icons for a specific bundle.

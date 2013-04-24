@@ -9,38 +9,54 @@
  * Icon Bundle Overview Form
  */
 function icon_bundle_overview_form($form, $form_state) {
-  $disabled_bundles = variable_get('icon_disabled_bundles', array());
+  $module_path = drupal_get_path('module', 'icon');
+  $form['#attached'] = array(
+    'css' => array(
+      $module_path . '/css/iconapi-embedded.css',
+      array(
+        'type' => 'file',
+        'data' => $module_path . '/css/iconapi-ie7-codes.css',
+        'browser' => array(
+          '!IE' => FALSE,
+          'IE' => 'IE 7',
+        ),
+      )
+    ),
+  );
   $header = array(
     'bundle' => t('Bundle'),
     'provider' => t('Provider'),
     'count' => t('# of Icons'),
     'operations' => t('Operations'),
   );
+  $enabled_bundles = 0;
   $total_icons = 0;
   $destination = drupal_get_destination();
   $rows = array();
   foreach (icon_bundles() as $bundle) {
-    $status = !in_array($bundle['name'], $disabled_bundles);
     $row = array();
-    $row[] = ($status ? l($bundle['title'], ICON_ADMIN_PATH . '/' . $bundle['name']) : $bundle['title']) . (!empty($bundle['version']) ? ' - ' . $bundle['version'] : '') . (!$status ? ' (disabled)' : '');
+    $row[] = ($bundle['enabled'] ? l($bundle['title'], ICON_ADMIN_PATH . '/' . $bundle['name']) : $bundle['title']) . (!empty($bundle['version']) ? ' - ' . $bundle['version'] : '') . (!$bundle['enabled'] ? ' (disabled)' : '');
     $row[] = !empty($bundle['url']) ? l($bundle['provider'], $bundle['url']) : $bundle['provider'];
     $row[] = count($bundle['icons']);
     $operations = array();
-    if ($status) {
+    if ($bundle['enabled']) {
+      $enabled_bundles += 1;
       $total_icons += count($bundle['icons']);
       if (user_access('administer icons')) {
         $operations['disable'] = array(
-          'title' => t('Disable'),
+          'title' => '<i class="iconapi-admin-cancel"></i>' . t('Disable'),
           'href' => ICON_ADMIN_PATH . '/' . $bundle['name'] . '/disable',
           'query' => $destination,
+          'html' => TRUE,
         );
       }
     }
     elseif (user_access('administer icons')) {
       $operations['enable'] = array(
-        'title' => t('Enable'),
+        'title' => '<i class="iconapi-admin-check"></i>' . t('Enable'),
         'href' => ICON_ADMIN_PATH . '/' . $bundle['name'] . '/enable',
         'query' => $destination,
+        'html' => TRUE,
       );
     }
     $row['operations'] = array();
@@ -62,7 +78,7 @@ function icon_bundle_overview_form($form, $form_state) {
           '#type' => 'link',
           '#title' => $link['title'],
           '#href' => $link['href'],
-          '#options' => array('query' => $link['query']),
+          '#options' => array('html' => TRUE, 'query' => $link['query']),
         ),
       );
     }
@@ -74,14 +90,14 @@ function icon_bundle_overview_form($form, $form_state) {
     '#rows' => $rows,
     '#empty' => t('No bundles currently installed.'),
   );
-  $form['total'] = array(
-    '#markup' => '<h3>' . t('Total available icons: !total', array('!total' => $total_icons)) . '</h3>',
+  $form['totals'] = array(
+    '#markup' => '<strong>' . t('Total bundles: !total_bundles (!enabled_bundles enabled)', array('!total_bundles' => count(icon_bundles()), '!enabled_bundles' => $enabled_bundles)) . '</strong><br /><strong>' . t('Total icons available: !total', array('!total' => $total_icons)) . '</strong>',
   );
   return $form;
 }
 
 function icon_bundle_enable_form($form, $form_state, $bundle) {
-  if (icon_bundle_enabled($bundle)) {
+  if ($bundle['enabled']) {
     drupal_set_message(t('The icon bundle %bundle is already enabled.', array('%bundle' => $bundle['title'])), 'error');
     drupal_goto(ICON_ADMIN_PATH);
   }
@@ -99,7 +115,7 @@ function icon_bundle_enable_form_submit($form, $form_state) {
 }
 
 function icon_bundle_disable_form($form, $form_state, $bundle) {
-  if (!icon_bundle_enabled($bundle)) {
+  if (!$bundle['enabled']) {
     drupal_set_message(t('The icon bundle %bundle is already disabled.', array('%bundle' => $bundle['title'])), 'error');
     drupal_goto(ICON_ADMIN_PATH);
   }

@@ -67,10 +67,18 @@ function template_preprocess_icon(&$variables) {
     $attributes['class'] = array();
   }
   $attributes['class'][] = 'icon';
+  // Prevent screen readers from reading icons
+  $attributes['aria-hidden'] = 'true';
+  // Load additional libraries, CSS, JavaScript an other custom
+  // attached data associated with this bundle.
+  if (!empty($bundle['#attached'])) {
+    drupal_process_attached($bundle);
+  }
 }
 
 /**
  * Theming responsibility is passed to the bundle provider.
+ * This theming hook should never be overridden.
  */
 function theme_icon($variables) {
   $bundle = $variables['bundle'];

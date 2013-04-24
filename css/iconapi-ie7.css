@@ -1,0 +1,22 @@
+[class^="iconapi-"], [class*=" iconapi-"] {
+  font-family: 'iconapi';
+  font-style: normal;
+  font-weight: normal;
+ 
+  /* fix buttons height */
+  line-height: 1em;
+ 
+  /* you can be more comfortable with increased icons size */
+  /* font-size: 120%; */
+}
+ 
+.iconapi-admin-plus { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff2;&nbsp;'); }
+.iconapi-admin-minus { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff3;&nbsp;'); }
+.iconapi-admin-cog { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff6;&nbsp;'); }
+.iconapi-admin-pencil { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff5;&nbsp;'); }
+.iconapi-admin-check { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff0;&nbsp;'); }
+.iconapi-admin-cancel { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff1;&nbsp;'); }
+.iconapi-admin-select { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff7;&nbsp;'); }
+.iconapi-admin-right-open { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff8;&nbsp;'); }
+.iconapi-admin-upload { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff4;&nbsp;'); }
+.iconapi-admin-throbber { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff9;&nbsp;'); }

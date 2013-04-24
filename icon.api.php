@@ -50,13 +50,15 @@ function hook_icon_render_hooks_alter(&$hooks) {
  *     - render: Required, name of the rendering hook this bundle should use.
  *       If omitted or the rendering hook is not implemented, then this bundle
  *       will be ignored.
- *     - icons: Required, an array containing icon data. The structure of this
- *       array entirely depends on which render hook is being used. If unsure,
- *       study the render hook's theme_icon_RENDER() implementation.
+ *     - icons: Required, an associative array containing icon data. This array
+ *       requires a unique key name for each icon. The value may be a string or
+ *       array and entirely depends on which render hook is being used. If
+ *       unsure, study the render hook's theme_icon_RENDER() implementation.
  *     - title: Optional, human readable title for the bundle. If omitted, it
  *       will fall back to using the bundle_name.
  *     - provider: Optional, name of the bundle provider. If omitted, it will
- *       fall back to using the module name that implements this hook.
+ *       fall back to using the module or theme machine name that implements
+ *       this hook.
  *     - url: Optional, URL for more information regarding the bundle.
  *     - version: Optional, supplemental information for identifying the bundle's
  *       revision iteration.
@@ -68,6 +70,10 @@ function hook_icon_render_hooks_alter(&$hooks) {
  *     - settings: Optional, an array containing setting data. The structure of
  *       this array entirely depends on which render hook is be used. If unsure,
  *       study the render hook's theme_icon_RENDER() implementation.
+ *     - #attached: Optional, an associative array containing additional
+ *       resources to be loaded with the bundle. This allows render hooks the
+ *       ability to specify external resources that contain the necessary code
+ *       for the icons to function properly, such as a CSS file for sprites.
  *
  * @see icon_icon_bundles()
  */
@@ -81,12 +87,21 @@ function hook_icon_bundles() {
     'path' => drupal_get_path('module', 'my_module') . '/icons',
     'import' => TRUE, // or FALSE,
     'icons' => array(
-      'alert', // Icon names (filenames, without extension)
-      'info',
-      'warning',
+      // Icon name => Title (or array of data, depends on the render hook)
+      // The icon name for the render hook "image" is the filename without
+      // the extension.
+      'alert' => 'Message: Alert',
+      'info' => 'Message: Info',
+      'warning' => 'Message: Warning',
     ),
     'settings' => array(
       'extension' => 'gif', // Defaults to 'png' for the render hook: image.
+    ),
+    '#attached' => array(
+      'css' => array(),
+      'js' => array(),
+      'library' => array(),
+      'callback_function' => array(),
     ),
   );
   return $bundles;
