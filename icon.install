@@ -15,6 +15,16 @@ function icon_schema() {
 }
 
 /**
+ * Implements hook_uninstall().
+ */
+function icon_uninstall() {
+  // Remove fontello variables.
+  db_delete('variable')
+  ->condition('name', 'icon_%', 'LIKE')
+  ->execute();
+}
+
+/**
  * Set module weight.
  */
 function icon_set_module_weight($module, $weight = 100) {
