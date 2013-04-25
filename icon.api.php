@@ -151,21 +151,24 @@ function hook_icon_bundle_save($bundle) {
 }
 
 /**
- * Process callback for bundle import.
+ * Process callback for provider archive import.
  */
-function hook_icon_bundle_import_process($file, &$form_state) {
+function hook_icon_import_process($provider, &$bundle) {
+  if ($provider['name'] === 'my_provider') {
+    // Do stuff to the $bundle variable here...
+  }
 }
 
 /**
- * Validate callback for bundle import.
+ * Validate callback for provider archive import.
  */
-function hook_icon_bundle_import_validate($form, &$form_state) {
-}
-
-/**
- * Submit callback for bundle import.
- */
-function hook_icon_bundle_import_submit($form, &$form_state) {
+function hook_icon_import_validate($provider, $path) {
+  if ($provider['name'] === 'my_provider') {
+    if ($condition === TRUE) {
+      return TRUE;
+    }
+    return t('my_provider could not validate this import.');
+  }
 }
 
 /**

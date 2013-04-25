@@ -35,7 +35,7 @@ function icon_bundle_overview_form($form, $form_state) {
   $rows = array();
   foreach (icon_bundles() as $bundle) {
     $row = array();
-    $row[] = ($bundle['enabled'] ? l($bundle['title'], ICON_ADMIN_PATH . '/' . $bundle['name']) : $bundle['title']) . (!empty($bundle['version']) ? ' - ' . $bundle['version'] : '') . (!$bundle['enabled'] ? ' (disabled)' : '');
+    $row[] = ($bundle['enabled'] ? l($bundle['title'], ICON_ADMIN_PATH . '/bundle/' . $bundle['name']) : $bundle['title']) . (!empty($bundle['version']) ? ' - ' . $bundle['version'] : '') . (!$bundle['enabled'] ? ' (disabled)' : '');
     $row[] = !empty($bundle['url']) ? l($bundle['provider'], $bundle['url']) : $bundle['provider'];
     $row[] = count($bundle['icons']);
     $operations = array();
@@ -45,7 +45,7 @@ function icon_bundle_overview_form($form, $form_state) {
       if (user_access('administer icons')) {
         $operations['disable'] = array(
           'title' => '<i class="iconapi-admin-cancel"></i>' . t('Disable'),
-          'href' => ICON_ADMIN_PATH . '/' . $bundle['name'] . '/disable',
+          'href' => ICON_ADMIN_PATH . '/bundle/' . $bundle['name'] . '/disable',
           'query' => $destination,
           'html' => TRUE,
         );
@@ -54,7 +54,7 @@ function icon_bundle_overview_form($form, $form_state) {
     elseif (user_access('administer icons')) {
       $operations['enable'] = array(
         'title' => '<i class="iconapi-admin-check"></i>' . t('Enable'),
-        'href' => ICON_ADMIN_PATH . '/' . $bundle['name'] . '/enable',
+        'href' => ICON_ADMIN_PATH . '/bundle/' . $bundle['name'] . '/enable',
         'query' => $destination,
         'html' => TRUE,
       );

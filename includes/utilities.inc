@@ -2,8 +2,46 @@
 
 /**
  * @file utilities.inc
- * Provides useful functions for common tasks.
+ * Provides useful functions and common tasks.
  */
+
+/**
+ * Extracts an uploaded archive file to the specified directory.
+ *
+ * @param string $file
+ *   The filepath or URI of the archive that should be extracted.
+ * @param string $directory
+ *   The directory or URI the archive should extract into.
+ *
+ * @return Archiver
+ *   The Archiver object used to extract the archive.
+ */
+function icon_archive_extract($file, $directory) {
+  $archiver = archiver_get_archiver($file);
+  if (!$archiver) {
+    throw new Exception(t('Cannot extract %file, not a valid archive.', array('%file' => $file)));
+  }
+  file_prepare_directory($directory, FILE_CREATE_DIRECTORY);
+  $files = $archiver->listContents();
+  $sub_directory = strtok($files[0], '/\\');
+  $extract_location = $directory . '/' . $sub_directory;
+  if (file_exists($extract_location)) {
+    file_unmanaged_delete_recursive($extract_location);
+  }
+  try {
+    $archiver->extract($directory);
+  }
+  catch (Exception $e) {
+    if (file_exists($extract_location)) {
+      file_unmanaged_delete_recursive($extract_location);
+    }
+    file_delete($file);
+    throw new Exception($e->getMessage());
+    return;
+  }
+  $archiver->dir = $sub_directory;
+  return $archiver;
+}
 
 /**
  * Determines whether an extension implements a hook.
@@ -88,10 +126,16 @@ function icon_extension_implements($hook) {
  * @return
  *   The return value of the hook implementation.
  */
-function icon_extension_invoke($type, $extension, $hook) {
+function icon_extension_invoke($type, $extension, $hook, &$data = NULL, &$context = NULL) {
   $args = func_get_args();
   // Remove $type, $extension and $hook from the arguments.
   unset($args[0], $args[1], $args[2]);
+  if (isset($args[3])) {
+    $args[3] = &$data;
+  }
+  if (isset($args[4])) {
+    $args[4] = &$context;
+  }
   if (icon_extension_hook($type, $extension, $hook)) {
     return call_user_func_array($extension . '_' . $hook, $args);
   }
@@ -119,6 +163,62 @@ function icon_enabled_themes() {
     }
   }
   return $themes;
+}
+
+/**
+ * Moves a file to a new location without database changes or hook invocation.
+ *
+ * @param string $source
+ *   The filepath or URI where the original source file(s) reside.
+ * @param string $destination
+ *   The URI where $source should be moved to. This must be a stream wrapper URI.
+ *   If this value is omitted, Drupal's default files scheme will be used,
+ *   usually "public://".
+ * @param string $rename
+ *   When moving a directory, the base name of $source will be used. If desired,
+ *   you can effectively rename the top level directory on $destination by
+ *   providing a new base name value to the $rename parameter.
+ * @param $replace
+ *   Replace behavior when the destination file already exists:
+ *   - FILE_EXISTS_REPLACE - Replace the existing file (default behavior).
+ *   - FILE_EXISTS_RENAME - Append _{incrementing number} until the filename is
+ *       unique.
+ *   - FILE_EXISTS_ERROR - Do nothing and return FALSE.
+ * @param $depth
+ *   Internal use, do not use.
+ *
+ * @return
+ *    The URI of the moved file or directory, or FALSE in the event of an error.
+ */
+function icon_file_move($source, $destination = NULL, $rename = FALSE, $replace = FILE_EXISTS_REPLACE, $depth = 0) {
+  if (is_dir($source)) {
+    if (!$depth) {
+      $destination .= '/' . ($rename ? $rename : drupal_basename($source));
+      file_unmanaged_delete_recursive($destination);
+    }
+    file_prepare_directory($destination, FILE_CREATE_DIRECTORY);
+    $dir = dir($source);
+    while (($file = $dir->read()) !== FALSE) {
+      if ($file == '.' || $file == '..') {
+        continue;
+      }
+      $source_file = $source . '/' . $file;
+      $destination_file = $destination . '/' . $file;
+      if (!icon_file_move($source_file, $destination_file, FALSE, $replace, $depth + 1)) {
+        $dir->close();
+        return FALSE;
+      }
+    }
+    $dir->close();
+    if (!file_unmanaged_delete_recursive($source)) {
+      return FALSE;
+    }
+    return $destination;
+  }
+  elseif (is_file($source)) {
+    return file_unmanaged_copy($source, $destination, $replace);
+  }
+  return FALSE;
 }
 
 /**
