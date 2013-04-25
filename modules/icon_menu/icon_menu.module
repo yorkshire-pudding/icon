@@ -162,10 +162,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
     '#title' => t('Title Wrapper Element'),
     '#description' => t('The type of element to use for the title wrapper.'),
     '#default_value' => $defaults['title_wrapper_element'],
-    '#options' => array(
-      'span' => '<span/>',
-      'div' => '<div/>',
-    ),
+    '#options' => drupal_map_assoc(array('span', 'div')),
     '#states' => $wrap_state,
   );
   $form['options']['icon']['title_wrapper_class'] = array(

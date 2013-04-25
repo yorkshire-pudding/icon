@@ -91,7 +91,7 @@ function icon_bundle_overview_form($form, $form_state) {
     '#empty' => t('No bundles currently installed.'),
   );
   $form['totals'] = array(
-    '#markup' => '<strong>' . t('Total bundles: !total_bundles (!enabled_bundles enabled)', array('!total_bundles' => count(icon_bundles()), '!enabled_bundles' => $enabled_bundles)) . '</strong><br /><strong>' . t('Total icons available: !total', array('!total' => $total_icons)) . '</strong>',
+    '#markup' => '<strong>' . t('Enabled bundles: !enabled_bundles', array('!enabled_bundles' => $enabled_bundles)) . '</strong><br /><strong>' . t('Icons available: !total', array('!total' => $total_icons)) . '</strong>',
   );
   return $form;
 }

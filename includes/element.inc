@@ -42,6 +42,9 @@ function form_process_icon_selector($element) {
   // Build the options array for available icons per bundle.
   $options = array();
   foreach (icon_bundles() as $bundle_name => $bundle) {
+    if (!$bundle['enabled']) {
+      continue;
+    }
     foreach ($bundle['icons'] as $icon_name => $icon) {
       $icon_name = is_string($icon_name) ? $icon_name : $icon;
       if (is_array($icon_name) && isset($icon_name['name'])) {
@@ -52,6 +55,15 @@ function form_process_icon_selector($element) {
         $icon_title = $icon_title['title'];
       }
       $options[$bundle['title']][$bundle['name'] . '|' . $icon_name] = $icon_title;
+    }
+  }
+  if (!count($options)) {
+    $element['#description'] = t('There are no icons available to choose from. They either do not exist or are disabled. As a result, this icon selector has also been disable.');
+    $element['#description'] .= '<br />' . l(t('Manage icon bundles'), ICON_ADMIN_PATH);
+    $element['#disabled'] = TRUE;
+    // Set the default value
+    if (!empty($default_value)) {
+      $options = array($default_value => $default_icon);
     }
   }
   $element['icon'] = array(

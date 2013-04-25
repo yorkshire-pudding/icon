@@ -8,10 +8,10 @@
 function icon_provider_import_form($form, $form_state) {
   // Build a list of providers.
   $providers = array(
-    'automatic' => t('Automatic detection'),
+    'automatic' => t('Automatically detect'),
   );
   foreach (icon_providers() as $provider) {
-    $providers[$provider['name']] = $provider['title'] . (!empty($provider['url']) ? ' (' . l(t('website'), $provider['url']) . ')' : '');
+    $providers[$provider['name']] = $provider['title'];
   }
   $form['title'] = array(
     '#type' => 'textfield',
@@ -30,8 +30,8 @@ function icon_provider_import_form($form, $form_state) {
     ),
   );
   $form['provider'] = array(
-    '#type' => 'radios',
-    '#title' => t('Available providers'),
+    '#type' => 'select',
+    '#title' => t('Provider'),
     '#options' => $providers,
     '#default_value' => 'automatic',
     '#required' => TRUE,
