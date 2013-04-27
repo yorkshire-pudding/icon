@@ -10,6 +10,11 @@
  */
 function icon_theme($existing, $type, $theme, $path) {
   $include_path = drupal_get_path('module', 'icon') . '/includes';
+  $hooks['icon_bundle_overview_form'] = array(
+    'render element' => 'form',
+    'file' => 'admin.inc',
+    'path' => $include_path,
+  );
   $hooks['icon'] = array(
     'file' => 'theme.inc',
     'path' => $include_path,
@@ -56,7 +61,7 @@ function template_preprocess_icon(&$variables) {
   $render_hooks = array_keys(icon_render_hooks());
   // Check to see if the bundle is valid, the icon is a part of the bundle and
   // the bundle has a valid render hook assigned.
-  if (!$bundle || !$bundle['enabled'] || !(isset($bundle['icons'][$icon]) || in_array($icon, $bundle['icons']) || !in_array($bundle['render'], $render_hooks))) {
+  if (!$bundle || !$bundle['status'] || !(isset($bundle['icons'][$icon]) || in_array($icon, $bundle['icons']) || !in_array($bundle['render'], $render_hooks))) {
     $bundle = FALSE;
     $icon = FALSE;
     return;
@@ -71,9 +76,7 @@ function template_preprocess_icon(&$variables) {
   $attributes['aria-hidden'] = 'true';
   // Load additional libraries, CSS, JavaScript an other custom
   // attached data associated with this bundle.
-  if (!empty($bundle['#attached'])) {
-    drupal_process_attached($bundle);
-  }
+  icon_process_attached($bundle);
 }
 
 /**

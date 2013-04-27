@@ -23,112 +23,132 @@ function icon_bundle_overview_form($form, $form_state) {
       )
     ),
   );
-  $header = array(
-    'bundle' => t('Bundle'),
-    'provider' => t('Provider'),
-    'count' => t('# of Icons'),
-    'operations' => t('Operations'),
-  );
-  $enabled_bundles = 0;
-  $total_icons = 0;
-  $destination = drupal_get_destination();
-  $rows = array();
-  foreach (icon_bundles() as $bundle) {
-    $row = array();
-    $row[] = ($bundle['enabled'] ? l($bundle['title'], ICON_ADMIN_PATH . '/bundle/' . $bundle['name']) : $bundle['title']) . (!empty($bundle['version']) ? ' - ' . $bundle['version'] : '') . (!$bundle['enabled'] ? ' (disabled)' : '');
-    $row[] = !empty($bundle['url']) ? l($bundle['provider'], $bundle['url']) : $bundle['provider'];
-    $row[] = count($bundle['icons']);
-    $operations = array();
-    if ($bundle['enabled']) {
-      $enabled_bundles += 1;
-      $total_icons += count($bundle['icons']);
-      if (user_access('administer icons')) {
-        $operations['disable'] = array(
-          'title' => '<i class="iconapi-admin-cancel"></i>' . t('Disable'),
-          'href' => ICON_ADMIN_PATH . '/bundle/' . $bundle['name'] . '/disable',
-          'query' => $destination,
-          'html' => TRUE,
-        );
-      }
-    }
-    elseif (user_access('administer icons')) {
-      $operations['enable'] = array(
-        'title' => '<i class="iconapi-admin-check"></i>' . t('Enable'),
-        'href' => ICON_ADMIN_PATH . '/bundle/' . $bundle['name'] . '/enable',
-        'query' => $destination,
-        'html' => TRUE,
-      );
-    }
-    $row['operations'] = array();
-    if (count($operations) > 1) {
-      // Render an unordered list of operations links.
-      $row['operations'] = array(
-        'data' => array(
-          '#theme' => 'links',
-          '#links' => $operations,
-          '#attributes' => array('class' => array('links', 'inline')),
-        ),
-      );
-    }
-    elseif (!empty($operations)) {
-      // Render the first and only operation as a link.
-      $link = reset($operations);
-      $row['operations'] = array(
-        'data' => array(
-          '#type' => 'link',
-          '#title' => $link['title'],
-          '#href' => $link['href'],
-          '#options' => array('html' => TRUE, 'query' => $link['query']),
-        ),
-      );
-    }
-    $rows[] = $row;
-  }
   $form['bundles'] = array(
-    '#theme' => 'table',
-    '#header' => $header,
-    '#rows' => $rows,
-    '#empty' => t('No bundles currently installed.'),
+    '#tree' => TRUE,
   );
-  $form['totals'] = array(
-    '#markup' => '<strong>' . t('Enabled bundles: !enabled_bundles', array('!enabled_bundles' => $enabled_bundles)) . '</strong><br /><strong>' . t('Icons available: !total', array('!total' => $total_icons)) . '</strong>',
+  foreach (icon_bundles() as $bundle) {
+    $form['bundles'][$bundle['name']]['#bundle'] = $bundle;
+    $form['bundles'][$bundle['name']]['status'] = array(
+      '#type' => 'checkbox',
+      '#default_value' => $bundle['status'],
+    );
+  }
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save configuration'),
   );
   return $form;
 }
 
-function icon_bundle_enable_form($form, $form_state, $bundle) {
-  if ($bundle['enabled']) {
-    drupal_set_message(t('The icon bundle %bundle is already enabled.', array('%bundle' => $bundle['title'])), 'error');
+function icon_bundle_overview_form_submit($form, $form_state) {
+  $bundles = icon_bundles();
+  $saved_bundles = $form_state['values']['bundles'];
+  $clear_caches = FALSE;
+  foreach ($bundles as $name => $bundle) {
+    if (!isset($saved_bundles[$name]['status'])) {
+      continue;
+    }
+    $status = $saved_bundles[$name]['status'];
+    if ($status !== $bundle['status']) {
+      if (($status ? icon_bundle_enable($bundle) : icon_bundle_disable($bundle))) {
+        icon_clear_all_caches();
+      }
+    }
+  }
+}
+
+function theme_icon_bundle_overview_form($variables) {
+  $output = '';
+  $form = $variables['form'];
+  $header = array(
+    'enable' => t('Enabled'),
+    'count' => t('Icons'),
+    'bundle' => t('Bundle'),
+    'provider' => t('Provider'),
+    'operations' => array(
+      'data' => t('Operations'),
+      'colspan' => 3,
+    ),
+  );
+  $destination = drupal_get_destination();
+  $rows = array();
+  foreach (element_children($form['bundles']) as $key) {
+    $row = array();
+    $bundle = $form['bundles'][$key]['#bundle'];
+    $row[] = array(
+      'data' => drupal_render($form['bundles'][$key]['status']),
+      'style' => 'width: 0; text-align: center;',
+    );
+    $row[] = array(
+      'data' => count($bundle['icons']),
+      'style' => 'width: 0; text-align: center;',
+    );
+    $row[] = $bundle['title'] . (!empty($bundle['version']) ? ' - ' . $bundle['version'] : '');
+    if ($provider = icon_provider_load($bundle['provider'])) {
+      $row[] = !empty($provider['url']) ? l($provider['title'], $provider['url']) : $provider['title'];
+    }
+    else {
+      $row[] = !empty($bundle['url']) ? l($bundle['provider'], $bundle['url']) : $bundle['provider'];
+    }
+    $row['view'] = '';
+    $row['configure'] = '';
+    $row['delete'] = '';
+
+    $operations = array();
+    if ($bundle['status']) {
+      $operations['view'] = t('View');
+    }
+    if (!empty($bundle['import'])) {
+      $operations['delete'] = '<i class="iconapi-admin-cancel"></i>' . t('Delete');
+    }
+    elseif (!empty($bundle['overriden'])) {
+      $operations['reset'] = t('Reset');
+    }
+    // Convert operations into links.
+    foreach ($operations as $action => $title) {
+      $row[($action === 'reset' ? 'delete' : $action)] = array(
+        'data' => array(
+          '#type' => 'link',
+          '#title' => $title,
+          '#href' => ICON_ADMIN_PATH . '/bundle/' . $bundle['name'] . ($action === 'view' ? '' : '/' . $action),
+          '#options' => array('html' => TRUE, 'query' => $destination),
+        ),
+        'style' => 'width: 0; white-space: nowrap;',
+      );
+    }
+    $rows[] = $row;
+  }
+  $output .= theme('table', array(
+    'header' => $header,
+    'rows' => $rows,
+    'empty' => t('No bundles currently installed.'),
+  ));
+  $output .= drupal_render_children($form);
+  return $output;
+}
+
+function icon_bundle_delete_form($form, $form_state, $bundle) {
+  return confirm_form($form, t('Delete %bundle icon bundle?', array('%bundle' => $bundle['title'])), ICON_ADMIN_PATH, NULL, t('Delete'));
+}
+
+function icon_bundle_delete_form_submit($form, $form_state) {
+  if (!empty($form_state['values']['confirm'])) {
+    icon_bundle_delete($form_state['build_info']['args'][0]);
+  }
+}
+
+function icon_bundle_reset_form($form, $form_state, $bundle) {
+  if (empty($bundle['overriden'])) {
+    drupal_set_message(t('The icon bundle %bundle is not currently overridden in the database.', array('%bundle' => $bundle['title'])), 'error');
     drupal_goto(ICON_ADMIN_PATH);
   }
-  return confirm_form($form, t('Enable %bundle icon bundle?', array('%bundle' => $bundle['title'])), ICON_ADMIN_PATH, '', t('Enable'));
+  return confirm_form($form, t('Reset %bundle icon bundle?', array('%bundle' => $bundle['title'])), ICON_ADMIN_PATH, NULL, t('Disable'));
 }
 
-function icon_bundle_enable_form_submit($form, $form_state) {
-  $bundle = $form_state['build_info']['args'][0];
-  $disabled_bundles = drupal_map_assoc(variable_get('icon_disabled_bundles', array()));
-  if (!empty($form_state['values']['confirm']) && !empty($disabled_bundles[$bundle['name']])) {
-    unset($disabled_bundles[$bundle['name']]);
-    variable_set('icon_disabled_bundles', array_values($disabled_bundles));
-    icon_clear_all_caches();
-  }
-}
-
-function icon_bundle_disable_form($form, $form_state, $bundle) {
-  if (!$bundle['enabled']) {
-    drupal_set_message(t('The icon bundle %bundle is already disabled.', array('%bundle' => $bundle['title'])), 'error');
-    drupal_goto(ICON_ADMIN_PATH);
-  }
-  return confirm_form($form, t('Disable %bundle icon bundle?', array('%bundle' => $bundle['title'])), ICON_ADMIN_PATH, '', t('Disable'));
-}
-
-function icon_bundle_disable_form_submit($form, $form_state) {
-  $bundle = $form_state['build_info']['args'][0];
-  $disabled_bundles = drupal_map_assoc(variable_get('icon_disabled_bundles', array()));
-  if (!empty($form_state['values']['confirm']) && !in_array($bundle['name'], $disabled_bundles)) {
-    $disabled_bundles[] = $bundle['name'];
-    variable_set('icon_disabled_bundles', array_values($disabled_bundles));
-    icon_clear_all_caches();
+function icon_bundle_reset_form_submit($form, $form_state) {
+  if (!empty($form_state['values']['confirm'])) {
+    icon_bundle_delete($form_state['build_info']['args'][0]);
   }
 }
 

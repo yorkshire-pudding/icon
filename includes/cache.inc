@@ -6,15 +6,6 @@
  */
 
 /**
- * Provides an array of cache bins used by this module.
- */
-function icon_cache_bins() {
-  return array(
-    'cache_icon_bundles',
-  );
-}
-
-/**
  * Implements hook_flush_caches().
  */
 function icon_flush_caches() {
@@ -26,13 +17,11 @@ function icon_flush_caches() {
  * Clears all caches used by the icon module.
  */
 function icon_clear_all_caches() {
-  foreach (icon_cache_bins() as $bin) {
-    cache_clear_all('*', $bin, TRUE);
-  }
   cache_clear_all('icon_', 'cache', TRUE);
   icon_reset_static_cache();
-  // Rebuild icon caches.
+  // Rebuild icon data.
   icon_render_hooks();
+  icon_providers();
   icon_bundles();
 }
 
@@ -47,6 +36,7 @@ function icon_reset_static_cache() {
     'icon_extension_implements',
     'icon_find_theme_include',
     'icon_render_hooks',
+    'icon_process_attached',
   );
   foreach ($functions as $function) {
     drupal_static_reset($function);

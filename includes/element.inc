@@ -42,17 +42,17 @@ function form_process_icon_selector($element) {
   // Build the options array for available icons per bundle.
   $options = array();
   foreach (icon_bundles() as $bundle_name => $bundle) {
-    if (!$bundle['enabled']) {
+    if (!$bundle['status']) {
       continue;
     }
-    foreach ($bundle['icons'] as $icon_name => $icon) {
-      $icon_name = is_string($icon_name) ? $icon_name : $icon;
-      if (is_array($icon_name) && isset($icon_name['name'])) {
-        $icon_name = $icon_name['name'];
+    foreach ($bundle['icons'] as $icon_key => $icon_value) {
+      $icon_name = is_string($icon_key) ? $icon_key : $icon_value;
+      if (is_array($icon_value) && isset($icon_value['name'])) {
+        $icon_name = $icon_value['name'];
       }
-      $icon_title = is_string($icon_name) ? $icon_name : $icon;
-      if (is_array($icon_title) && isset($icon_title['title'])) {
-        $icon_title = $icon_title['title'];
+      $icon_title = is_string($icon_value) ? $icon_value : $icon_name;
+      if (is_array($icon_value) && isset($icon_value['title'])) {
+        $icon_title = $icon_value['title'];
       }
       $options[$bundle['title']][$bundle['name'] . '|' . $icon_name] = $icon_title;
     }

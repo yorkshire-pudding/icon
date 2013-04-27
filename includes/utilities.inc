@@ -126,7 +126,7 @@ function icon_extension_implements($hook) {
  * @return
  *   The return value of the hook implementation.
  */
-function icon_extension_invoke($type, $extension, $hook, &$data = NULL, &$context = NULL) {
+function icon_extension_invoke($type, $extension, $hook, &$data = NULL, &$context1 = NULL, &$context2 = NULL) {
   $args = func_get_args();
   // Remove $type, $extension and $hook from the arguments.
   unset($args[0], $args[1], $args[2]);
@@ -134,7 +134,10 @@ function icon_extension_invoke($type, $extension, $hook, &$data = NULL, &$contex
     $args[3] = &$data;
   }
   if (isset($args[4])) {
-    $args[4] = &$context;
+    $args[4] = &$context1;
+  }
+  if (isset($args[5])) {
+    $args[5] = &$context2;
   }
   if (icon_extension_hook($type, $extension, $hook)) {
     return call_user_func_array($extension . '_' . $hook, $args);
@@ -246,4 +249,25 @@ function icon_find_theme_include($theme) {
     }
   }
   return $themes[$theme];
+}
+
+/**
+ * Wrapper function for drupal_process_attached() so it only is invoked once
+ * per bundle, regardless of however many icons are rendered from it.
+ *
+ * @param array $bundle
+ *   The icon bundle array.
+ *
+ * @return boolean
+ *    FALSE if there were any missing library dependencies; TRUE if all library dependencies were met.
+ */
+function icon_process_attached(array $bundle = array()) {
+  if (empty($bundle['name'])) {
+    return FALSE;
+  }
+  $bundles = &drupal_static(__FUNCTION__, array());
+  if (!isset($bundles[$bundle['name']])) {
+    $bundles[$bundle['name']] = drupal_process_attached($bundle);
+  }
+  return $bundles[$bundle['name']];
 }

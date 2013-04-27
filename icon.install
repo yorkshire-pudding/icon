@@ -9,8 +9,32 @@
  * Implements hook_schema().
  */
 function icon_schema() {
-  $schema['cache_icon_bundles'] = drupal_get_schema_unprocessed('system', 'cache');
-  $schema['cache_icon_bundles']['description'] = 'Cache table to store icon bundle information.';
+  $schema['icon_bundle'] = array(
+    'description' => 'Stores the contents of icon bundles.',
+    'fields' => array(
+      'name' => array(
+        'description' => 'The name of the icon bundle.',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'data' => array(
+        'description' => 'The data pertaining to icon bundle.',
+        'type' => 'blob',
+        'serialize' => TRUE,
+        'size' => 'big',
+      ),
+      'status' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+        'size' => 'tiny',
+        'description' => 'The enabled status. (1 = enabled, 0 = disabled) of the icon bundle.',
+      ),
+    ),
+    'primary key' => array('name'),
+  );
   return $schema;
 }
 

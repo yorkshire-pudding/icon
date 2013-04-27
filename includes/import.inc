@@ -78,12 +78,14 @@ function icon_provider_import_form_validate($form, &$form_state) {
     file_unmanaged_delete_recursive($temp_dir);
     return;
   }
-  $extract_path = $temp_dir . '/' . $archive->dir;
+  // Set the archive extraction path temporarily as the bundle path.
+  $bundle['path'] = $temp_dir . '/' . $archive->dir;
   // Automatic detection. Iterate over each provider and find the first one that
   // can import the archive file.
   if (!$provider) {
     foreach (icon_providers() as $_provider) {
-      $validation = icon_extension_invoke($_provider['type'], $_provider[$_provider['type']], 'icon_import_validate', $_provider, $extract_path);
+      $bundle['provider'] = $_provider['name'];
+      $validation = icon_extension_invoke($_provider['type'], $_provider[$_provider['type']], 'icon_import_validate', $bundle);
       // Providers must return a validation of TRUE if it passes. Otherwise
       // they should send an error message to display instead.
       if ($validation === TRUE) {
@@ -102,7 +104,8 @@ function icon_provider_import_form_validate($form, &$form_state) {
   }
   // A specific provider was selected, show the validation errors.
   else {
-    $validation = icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_import_validate', $provider, $extract_path);
+    $bundle['provider'] = $_provider['name'];
+    $validation = icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_import_validate', $bundle);
     if ($validation !== TRUE) {
       form_set_error('file', $validation);
       file_delete($file);
@@ -113,9 +116,10 @@ function icon_provider_import_form_validate($form, &$form_state) {
   // A provider has been determined. Merge in default bundle settings.
   $bundle = array_merge_recursive($bundle, $provider['default bundle']);
   $bundle['provider'] = $provider['name'];
+  $bundle['import'] = TRUE;
   // Move the extracted archive to a permanent location.
-  if (!$bundle['path'] = icon_file_move($temp_dir . '/' . $archive->dir, 'public://icon/' . $provider['name'], $bundle['name'])) {
-    form_set_error('file', t('An unknown error occured while trying to permanently move the uploaded archive file'));
+  if (!$bundle['path'] = icon_file_move($bundle['path'], 'public://icon/' . $bundle['provider'], $bundle['name'])) {
+    form_set_error('file', t('An error occured while attempting to extract the uploaded archive. Check the logs for more details.'));
   }
   // Delete the uploaded archive file and temporary directory.
   file_delete($file);
@@ -123,8 +127,19 @@ function icon_provider_import_form_validate($form, &$form_state) {
 }
 
 function icon_provider_import_form_submit($form, &$form_state) {
+  // Redirect to the overview form after submit.
+  $form_state['redirect'] = array(ICON_ADMIN_PATH);
+  // Get the bundle and provider set in validation.
   $bundle = &$form_state['bundle'];
   $provider = &$form_state['provider'];
-  icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_import_process', $provider, $bundle);
-  $form_state['redirect'] = array(ICON_ADMIN_PATH);
+  // Invoke hook_icon_import_process().
+  icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_import_process', $bundle);
+  // Save the bundle to the database.
+  if (!icon_bundle_save($bundle['name'], $bundle, 1)) {
+    drupal_set_message(t('An error occurred while attemping to save the imported icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
+    return;
+  }
+  drupal_set_message(t('The icon bundle %bundle was successfully imported.', array('%bundle' => $bundle['title'])));
+  // Clear the caches so the new bundle shows up.
+  icon_clear_all_caches();
 }

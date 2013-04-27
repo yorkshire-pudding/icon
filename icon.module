@@ -59,8 +59,8 @@ function icon_menu() {
   );
   $items[ICON_ADMIN_PATH . '/overview'] = array(
     'type' => MENU_DEFAULT_LOCAL_TASK,
-    'title' => 'Overview',
-    'description' =>  'Provide an overview of all available icons.',
+    'title' => 'Bundles',
+    'description' =>  'Provide an overview of all available icon bundles.',
     'weight' => -10,
   );
   if (icon_providers()) {
@@ -87,22 +87,22 @@ function icon_menu() {
     'file' => 'admin.inc',
     'file path' => $module_path . '/includes',
   );
-  $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/enable'] = array(
-    'title' => 'Enable icon bundle',
-    'description' =>  'Confirmation page for enabling an icon bundle.',
+  $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/delete'] = array(
+    'title' => 'Delete icon bundle',
+    'description' =>  'Confirmation page for deleting an icon bundle from the database.',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('icon_bundle_enable_form', 5),
+    'page arguments' => array('icon_bundle_delete_form', 5),
     'type' => MENU_CALLBACK,
     'access arguments' => array('administer icons'),
     'theme arguments' => array(5, TRUE),
     'file' => 'admin.inc',
     'file path' => $module_path . '/includes',
   );
-  $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/disable'] = array(
-    'title' => 'Disable icon bundle',
-    'description' =>  'Confirmation page for disabling an icon bundle.',
+  $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/reset'] = array(
+    'title' => 'Reset icon bundle',
+    'description' =>  'Confirmation page for resetting a module or theme provided bundle that has been overriden in the database.',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('icon_bundle_disable_form', 5),
+    'page arguments' => array('icon_bundle_reset_form', 5),
     'type' => MENU_CALLBACK,
     'access arguments' => array('administer icons'),
     'theme arguments' => array(5, TRUE),
@@ -152,7 +152,7 @@ function &icon_render_hooks($hook = NULL, $reset = FALSE) {
     }
     else {
       $hooks = array();
-      // Gather information from modules and themes that implement
+      // Gather information from extensions that implement
       // hook_icon_render_hooks().
       foreach (icon_extension_implements('icon_render_hooks') as $extension => $type) {
         $extension_hooks = (array) icon_extension_invoke($type, $extension, 'icon_render_hooks');
@@ -173,7 +173,7 @@ function &icon_render_hooks($hook = NULL, $reset = FALSE) {
           $hooks[$render_hook] = $data;
         }
       }
-      // Allow modules or themes to alter render hook information.
+      // Allow extensions to alter render hook information.
       drupal_alter('icon_render_hooks', $hooks);
       // Cache the render hook information.
       cache_set('icon_render_hooks', $hooks);
@@ -201,13 +201,15 @@ function &icon_render_hooks($hook = NULL, $reset = FALSE) {
  */
 function icon_bundle_defaults(&$bundle = array(), $name = '') {
   $bundle += array(
+    'icons' => array(),
     'name' => $name,
+    'provider' => '',
+    'settings' => array(),
+    'status' => 1,
     'title' => $name,
-    'provider' => $name,
     'url' => '',
     'version' => '',
-    'icons' => array(),
-    'settings' => array(),
+    '#attached' => array(),
   );
   return $bundle;
 }
@@ -232,12 +234,15 @@ function icon_bundles($name = NULL, $reset = FALSE) {
       $bundles = $cache->data;
     }
     else {
-      $disabled_bundles = variable_get('icon_disabled_bundles', array());
       $bundles = array();
+      // Gather information from extensions that implement hook_icon_bundles().
       foreach (icon_extension_implements('icon_bundles') as $extension => $type) {
         $extension_bundles = (array) icon_extension_invoke($type, $extension, 'icon_bundles');
         foreach ($extension_bundles as $bundle_name => $bundle) {
           icon_bundle_defaults($bundle, $bundle_name);
+          if (empty($bundle['provider'])) {
+            $bundle['provider'] = $extension;
+          }
           // In cases where themes may provide sprite icons (such as Bootstrap),
           // we need to specify the theme to use for this bundle. These types
           // of bundles do not attach a separate CSS file with the bundle and
@@ -247,16 +252,29 @@ function icon_bundles($name = NULL, $reset = FALSE) {
           if ($type === 'theme' && $bundle['render'] === 'sprite' && empty($bundle['#attached']['css'])) {
             $bundle['theme'] = $extension;
           }
-          if (in_array($bundle_name, $disabled_bundles)) {
-            $bundle['enabled'] = FALSE;
-          }
-          else {
-            $bundle['enabled'] = TRUE;
-          }
           $bundles[$bundle_name] = $bundle;
         }
       }
-      // Allow modules or themes to alter the bundles.
+      // Gather database bundles (which overrides any module implementations).
+      $database_bundles = db_select('icon_bundle', 'b')
+        ->fields('b')
+        ->execute();
+      foreach ($database_bundles as $database_bundle) {
+        $bundle = unserialize($database_bundle->data);
+        if ($bundle === FALSE) {
+          $bundle = array();
+        }
+        else {
+          $bundle['overriden'] = TRUE;
+        }
+        $bundle['database'] = TRUE;
+        $bundle['status'] = (int) $database_bundle->status;
+        if (isset($bundles[$database_bundle->name])) {
+          $bundle = array_merge($bundles[$database_bundle->name], $bundle);
+        }
+        $bundles[$database_bundle->name] = $bundle;
+      }
+      // Allow extensions to alter the bundles.
       drupal_alter('icon_bundles', $bundles);
       // Cache the info.
       cache_set('icon_bundles', $bundles);
@@ -272,6 +290,79 @@ function icon_bundles($name = NULL, $reset = FALSE) {
     }
   }
   return $bundles;
+}
+
+/**
+ * Delete the icon bundle that matches {icon_bundle}.name in the database.
+ *
+ * @param array $bundle
+ *   The icon bundle array.
+ *
+ * @return boolean
+ *   TRUE if successful, FALSE if bundle doesn't exist in database or on failure.
+ */
+function icon_bundle_delete(array $bundle = array()) {
+  if (empty($bundle['name']) || !icon_bundle_load($bundle['name'])) {
+    return FALSE;
+  }
+  $hook = 'icon_bundle_delete';
+  $query = db_delete('icon_bundle')->condition('name', $bundle['name']);
+  // Allow extensions to alter the query before executing.
+  drupal_alter($hook, $query);
+  // Execute the query.
+  if ($query->execute()) {
+    // Invoke hook_icon_bundle_delete().
+    foreach (icon_extension_implements($hook) as $extension => $type) {
+      icon_extension_invoke($type, $extension, $hook, $bundle);
+    }
+    icon_clear_all_caches();
+    drupal_set_message(t('The icon bundle %bundle has been !action.', array('!action' => (empty($bundle['overriden']) ? 'deleted' : 'reset'), '%bundle' => $bundle['title'])));
+    return TRUE;
+  }
+  else {
+    drupal_set_message(t('An error occurred while attemping to !action the icon bundle: %bundle.', array('!action' => (empty($bundle['overriden']) ? 'delete' : 'reset'), '%bundle' => $bundle['title'])), 'error');
+  }
+  return FALSE;
+}
+
+/**
+ * Disable the icon bundle that matches {icon_bundle}.name in the database.
+ *
+ * @param array $bundle
+ *   The icon bundle array.
+ *
+ * @return boolean
+ *   TRUE if successful, FALSE if the bundle is already disabled or on failure.
+ */
+function icon_bundle_disable(array $bundle = array()) {
+  if (!empty($bundle['name']) && icon_bundle_load($bundle['name']) && icon_bundle_save($bundle['name'], NULL, 0)) {
+    drupal_set_message(t('The icon bundle %bundle has been disabled.', array('%bundle' => $bundle['title'])));
+    return TRUE;
+  }
+  else {
+    drupal_set_message(t('An error occurred while attemping to disable the icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
+  }
+  return FALSE;
+}
+
+/**
+ * Enable the icon bundle that matches {icon_bundle}.name in the database.
+ *
+ * @param array $bundle
+ *   The icon bundle array.
+ *
+ * @return boolean
+ *   TRUE if successful, FALSE if the bundle is already enabled or on failure.
+ */
+function icon_bundle_enable(array $bundle = array()) {
+  if (!empty($bundle['name']) && icon_bundle_load($bundle['name']) && icon_bundle_save($bundle['name'], NULL, 1)) {
+    drupal_set_message(t('The icon bundle %bundle has been enabled.', array('%bundle' => $bundle['title'])));
+    return TRUE;
+  }
+  else {
+    drupal_set_message(t('An error occurred while attemping to enable the icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
+  }
+  return FALSE;
 }
 
 /**
@@ -303,16 +394,45 @@ function icon_bundle_get_title($bundle) {
 function icon_bundle_load($name) {
   $loaded = &drupal_static(__FUNCTION__, array());
   if (empty($loaded[$name])) {
-    if (($cache = cache_get($name, 'cache_icon_bundles')) && !empty($cache->data)) {
-      $loaded[$name] = $cache->data;
-    }
-    else {
-      $bundle = icon_bundles($name);
-      cache_set($name, $bundle, 'cache_icon_bundles');
-      $loaded[$name] = $bundle;
-    }
+    $loaded[$name] = icon_bundles($name);
   }
   return $loaded[$name];
+}
+
+/**
+ * Save an icon bundle in the {icon_bundle} table.
+ *
+ * @param $name
+ *   The machine name of the bundle.
+ * @param $bundle
+ *   The bundle data array. Only use when saving a bundle from a provider or
+ *   when overriding a bundle that was provided by an extension.
+ * @param $status
+ *   0 = Disabled, 1 = Enabled. Only use when necessary (for enabling and disabling).
+ *
+ * @return
+ *   If the save failed, returns FALSE. If successful, returns SAVED_NEW or
+ *   SAVED_UPDATED, depending on the drupal_write_record() operation
+ *   that was performed.
+ */
+function icon_bundle_save($name, $bundle = array(), $status = NULL) {
+  // Allow extensions to alter the record before it's saved.
+  drupal_alter('icon_bundle_save', $name, $bundle, $status);
+  $primary_keys = array();
+  $record = array(
+    'name' => $name,
+  );
+  $existing_bundle = icon_bundle_load($name);
+  if ($existing_bundle && !empty($existing_bundle['database'])) {
+    $primary_keys[] = 'name';
+  }
+  if (!empty($bundle)) {
+    $record['data'] = $bundle;
+  }
+  if (!is_null($status)) {
+    $record['status'] = (int) $status;
+  }
+  return drupal_write_record('icon_bundle', $record, $primary_keys);
 }
 
 /**
@@ -325,10 +445,10 @@ function icon_bundle_load($name) {
  */
 function icon_provider_defaults(&$provider = array(), $name = '') {
   $provider += array(
+    'default bundle' => array(),
     'name' => $name,
     'title' => $name,
     'url' => '',
-    'default bundle' => icon_bundle_defaults(),
   );
   return $provider;
 }
@@ -354,6 +474,7 @@ function icon_providers($name = NULL, $reset = FALSE) {
     }
     else {
       $providers = array();
+      // Gather information from extensions that implement hook_icon_providers().
       foreach (icon_extension_implements('icon_providers') as $extension => $type) {
         $extension_providers = (array) icon_extension_invoke($type, $extension, 'icon_providers');
         foreach ($extension_providers as $provider_name => $provider) {
@@ -372,7 +493,7 @@ function icon_providers($name = NULL, $reset = FALSE) {
           $providers[$provider_name] = $provider;
         }
       }
-      // Allow modules or themes to alter the providers.
+      // Allow extensions to alter the providers.
       drupal_alter('icon_providers', $providers);
       // Cache the info.
       cache_set('icon_providers', $providers);
