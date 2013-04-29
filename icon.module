@@ -78,7 +78,7 @@ function icon_menu() {
   $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle'] = array(
     'title callback' => 'icon_bundle_get_title',
     'title arguments' => array(5),
-    'description' =>  'Lists the icons in a bundle in a grid layout.',
+    'description' =>  'An icon bundle.',
     'page callback' => 'icon_bundle_list',
     'page arguments' => array(5),
     'access callback' => TRUE,
@@ -87,25 +87,39 @@ function icon_menu() {
     'file' => 'admin.inc',
     'file path' => $module_path . '/includes',
   );
+  $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/icons'] = array(
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'title' => 'Icons',
+    'description' =>  'Provide an overview of all available icon bundles.',
+    'weight' => -10,
+  );
+  $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/configure'] = array(
+    'type' => MENU_LOCAL_TASK,
+    'title' => 'Configure',
+    'description' =>  'Form callback for configuring an icon bundle.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('icon_bundle_configure_form', 5),
+    'access arguments' => array('administer icons'),
+    'file' => 'admin.inc',
+    'file path' => $module_path . '/includes',
+  );
   $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/delete'] = array(
-    'title' => 'Delete icon bundle',
+    'title' => 'Delete',
     'description' =>  'Confirmation page for deleting an icon bundle from the database.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('icon_bundle_delete_form', 5),
     'type' => MENU_CALLBACK,
     'access arguments' => array('administer icons'),
-    'theme arguments' => array(5, TRUE),
     'file' => 'admin.inc',
     'file path' => $module_path . '/includes',
   );
   $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/reset'] = array(
-    'title' => 'Reset icon bundle',
-    'description' =>  'Confirmation page for resetting a module or theme provided bundle that has been overriden in the database.',
+    'title' => 'Reset',
+    'description' =>  'Confirmation page for resetting a module or theme provided bundle that has been overridden in the database.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('icon_bundle_reset_form', 5),
     'type' => MENU_CALLBACK,
     'access arguments' => array('administer icons'),
-    'theme arguments' => array(5, TRUE),
     'file' => 'admin.inc',
     'file path' => $module_path . '/includes',
   );
@@ -265,7 +279,10 @@ function icon_bundles($name = NULL, $reset = FALSE) {
           $bundle = array();
         }
         else {
-          $bundle['overriden'] = TRUE;
+          icon_bundle_defaults($bundle, $bundle['name']);
+          if (!empty($bundles[$database_bundle->name])) {
+            $bundle['overridden'] = TRUE;
+          }
         }
         $bundle['database'] = TRUE;
         $bundle['status'] = (int) $database_bundle->status;
@@ -316,11 +333,11 @@ function icon_bundle_delete(array $bundle = array()) {
       icon_extension_invoke($type, $extension, $hook, $bundle);
     }
     icon_clear_all_caches();
-    drupal_set_message(t('The icon bundle %bundle has been !action.', array('!action' => (empty($bundle['overriden']) ? 'deleted' : 'reset'), '%bundle' => $bundle['title'])));
+    drupal_set_message(t('The icon bundle %bundle has been !action.', array('!action' => (!empty($bundle['overridden']) ? t('reset') : t('deleted')), '%bundle' => $bundle['title'])));
     return TRUE;
   }
   else {
-    drupal_set_message(t('An error occurred while attemping to !action the icon bundle: %bundle.', array('!action' => (empty($bundle['overriden']) ? 'delete' : 'reset'), '%bundle' => $bundle['title'])), 'error');
+    drupal_set_message(t('An error occurred while attemping to !action the icon bundle: %bundle.', array('!action' => (!empty($bundle['overridden']) ? t('reset') : t('delete')), '%bundle' => $bundle['title'])), 'error');
   }
   return FALSE;
 }
@@ -337,6 +354,7 @@ function icon_bundle_delete(array $bundle = array()) {
 function icon_bundle_disable(array $bundle = array()) {
   if (!empty($bundle['name']) && icon_bundle_load($bundle['name']) && icon_bundle_save($bundle['name'], NULL, 0)) {
     drupal_set_message(t('The icon bundle %bundle has been disabled.', array('%bundle' => $bundle['title'])));
+    icon_clear_all_caches();
     return TRUE;
   }
   else {
@@ -357,6 +375,7 @@ function icon_bundle_disable(array $bundle = array()) {
 function icon_bundle_enable(array $bundle = array()) {
   if (!empty($bundle['name']) && icon_bundle_load($bundle['name']) && icon_bundle_save($bundle['name'], NULL, 1)) {
     drupal_set_message(t('The icon bundle %bundle has been enabled.', array('%bundle' => $bundle['title'])));
+    icon_clear_all_caches();
     return TRUE;
   }
   else {
@@ -432,7 +451,11 @@ function icon_bundle_save($name, $bundle = array(), $status = NULL) {
   if (!is_null($status)) {
     $record['status'] = (int) $status;
   }
-  return drupal_write_record('icon_bundle', $record, $primary_keys);
+  if ($status = drupal_write_record('icon_bundle', $record, $primary_keys)) {
+    icon_clear_all_caches();
+    return $status;
+  }
+  return FALSE;
 }
 
 /**

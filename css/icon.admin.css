@@ -1,0 +1,9 @@
+td.compact {
+  width: 0;
+}
+td.compact a, td.compact ul.inline {
+  white-space: nowrap;
+}
+td.center {
+  text-align: center;
+}
