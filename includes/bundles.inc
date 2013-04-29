@@ -6,14 +6,24 @@
  */
 
 /**
+ * Implements hook_icon_providers().
+ */
+function icon_icon_providers() {
+  $providers['lullabot'] = array(
+    'title' => t('Lullabot'),
+    'url' => 'http://www.lullabot.com/articles/free-gpl-icons-lullacons-pack-1',
+  );
+  return $providers;
+}
+
+/**
  * Implements hook_icon_bundles().
  */
 function icon_icon_bundles() {
   $bundles['lullacons_pack1'] = array(
     'render' => 'image',
     'path' => drupal_get_path('module', 'icon') . '/bundles/lullacons',
-    'provider' => 'Lullabot',
-    'url' => 'http://www.lullabot.com/articles/free-gpl-icons-lullacons-pack-1',
+    'provider' => 'lullabot',
     'title' => t('Lullacons: Pack 1'),
     'icons' => array(
       'alert' => 'alert',

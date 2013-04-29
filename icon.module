@@ -63,7 +63,8 @@ function icon_menu() {
     'description' =>  'Provide an overview of all available icon bundles.',
     'weight' => -10,
   );
-  if (icon_providers()) {
+  $import_providers = icon_providers_support_import();
+  if (!empty($import_providers)) {
     $items[ICON_ADMIN_PATH . '/import'] = array(
       'type' => MENU_LOCAL_TASK,
       'title' => 'Import',
@@ -221,7 +222,6 @@ function icon_bundle_defaults(&$bundle = array(), $name = '') {
     'settings' => array(),
     'status' => 1,
     'title' => $name,
-    'url' => '',
     'version' => '',
     '#attached' => array(),
   );
@@ -256,6 +256,10 @@ function icon_bundles($name = NULL, $reset = FALSE) {
           icon_bundle_defaults($bundle, $bundle_name);
           if (empty($bundle['provider'])) {
             $bundle['provider'] = $extension;
+          }
+          // Alphebetically sort the icons.
+          if (!empty($bundle['icons'])) {
+            ksort($bundle['icons']);
           }
           // In cases where themes may provide sprite icons (such as Bootstrap),
           // we need to specify the theme to use for this bundle. These types
@@ -530,6 +534,26 @@ function icon_providers($name = NULL, $reset = FALSE) {
       drupal_alter('icon_providers', $providers);
       // Cache the info.
       cache_set('icon_providers', $providers);
+    }
+  }
+  if (!empty($name)) {
+    if (!empty($providers[$name])) {
+      return $providers[$name];
+    }
+    return FALSE;
+  }
+  return $providers;
+}
+
+function icon_providers_support_import($name = NULL) {
+  $providers = &drupal_static(__FUNCTION__);
+  if (!isset($providers)) {
+    $providers = array();
+    foreach (icon_providers() as $provider) {
+      if (icon_extension_hook($provider['type'], $provider[$provider['type']], 'icon_' . $provider['name'] . '_import_validate') &&
+      icon_extension_hook($provider['type'], $provider[$provider['type']], 'icon_' . $provider['name'] . '_import_process')) {
+        $providers[$provider['name']] = $provider;
+      }
     }
   }
   if (!empty($name)) {

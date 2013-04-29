@@ -67,8 +67,8 @@ function theme_icon_bundle_overview_form($variables) {
   $form = $variables['form'];
   $header = array(
     'enable' => t('Enabled'),
-    'count' => t('Icons'),
     'bundle' => t('Bundle'),
+    'count' => t('Count'),
     'provider' => t('Provider'),
     'operations' => t('Operations'),
   );
@@ -81,20 +81,20 @@ function theme_icon_bundle_overview_form($variables) {
       'data' => drupal_render($form['bundles'][$key]['status']),
       'class' => 'compact center',
     );
+    $row['bundle'] = $bundle['title'] . (!empty($bundle['version']) ? ' - ' . $bundle['version'] : '');
     $row['count'] = array(
       'data' => count($bundle['icons']),
       'class' => 'compact center',
     );
-    $row['bundle'] = $bundle['title'] . (!empty($bundle['version']) ? ' - ' . $bundle['version'] : '');
-    $row['provider']['class'] = 'compact';
+    $row['provider']['class'] = 'compact nowrap';
     if ($provider = icon_provider_load($bundle['provider'])) {
       $row['provider']['data'] = !empty($provider['url']) ? l($provider['title'], $provider['url']) : $provider['title'];
     }
     else {
-      $row['provider']['data'] = !empty($bundle['url']) ? l($bundle['provider'], $bundle['url']) : $bundle['provider'];
+      $row['provider']['data'] = $bundle['provider'];
     }
     // Build operations for each bundle.
-    $row['operations'] = array('class' => 'compact');
+    $row['operations'] = array('class' => 'compact nowrap');
     $operations = array();
     if ($bundle['status']) {
       $operations['view'] = array(
@@ -141,7 +141,7 @@ function theme_icon_bundle_overview_form($variables) {
 }
 
 function icon_bundle_configure_form($form, $form_state, $bundle) {
-  drupal_set_title(t('Configure %bundle', array('%bundle' => $bundle['title'])), PASS_THROUGH);
+  drupal_set_title(t('Configure %bundle icons', array('%bundle' => $bundle['title'])), PASS_THROUGH);
   $form_state['bundle'] = $bundle;
   $form['status'] = array(
     '#type' => 'checkbox',

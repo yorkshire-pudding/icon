@@ -10,7 +10,7 @@ function icon_provider_import_form($form, $form_state) {
   $providers = array(
     'automatic' => t('Automatically detect'),
   );
-  foreach (icon_providers() as $provider) {
+  foreach (icon_providers_support_import() as $provider) {
     $providers[$provider['name']] = $provider['title'];
   }
   $form['title'] = array(
@@ -85,7 +85,7 @@ function icon_provider_import_form_validate($form, &$form_state) {
   if (!$provider) {
     foreach (icon_providers() as $_provider) {
       $bundle['provider'] = $_provider['name'];
-      $validation = icon_extension_invoke($_provider['type'], $_provider[$_provider['type']], 'icon_import_validate', $bundle);
+      $validation = icon_extension_invoke($_provider['type'], $_provider[$_provider['type']], 'icon_' . $_provider['name'] . '_import_validate', $bundle);
       // Providers must return a validation of TRUE if it passes. Otherwise
       // they should send an error message to display instead.
       if ($validation === TRUE) {
@@ -105,7 +105,7 @@ function icon_provider_import_form_validate($form, &$form_state) {
   // A specific provider was selected, show the validation errors.
   else {
     $bundle['provider'] = $_provider['name'];
-    $validation = icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_import_validate', $bundle);
+    $validation = icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_' . $provider['name'] . '_import_validate', $bundle);
     if ($validation !== TRUE) {
       form_set_error('file', $validation);
       file_delete($file);
@@ -133,7 +133,7 @@ function icon_provider_import_form_submit($form, &$form_state) {
   $bundle = &$form_state['bundle'];
   $provider = &$form_state['provider'];
   // Invoke hook_icon_import_process().
-  icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_import_process', $bundle);
+  icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_' . $provider['name'] . '_import_process', $bundle);
   // Save the bundle to the database.
   if (!icon_bundle_save($bundle)) {
     drupal_set_message(t('An error occurred while attemping to import the %provider icon bundle: %bundle.', array('%provider' => $provider['title'], '%bundle' => $bundle['title'])), 'error');

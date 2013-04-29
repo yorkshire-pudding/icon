@@ -161,35 +161,6 @@ function hook_icon_bundle_save_alter(&$bundle) {
 }
 
 /**
- * Allow extensions to properly process the bundle after it has been extracted
- * to the proper location and successfully imported. This is typically the step
- * where most logic should take place to determine available icons and settings.
- * This is the step right before it is saved to the database.
- *
- * @see icon_provider_import_form_submit()
- */
-function hook_icon_import_process(&$bundle) {
-  if ($bundle['provider'] === 'my_provider') {
-    // Do stuff to the $bundle variable here...
-  }
-}
-
-/**
- * Validate callback for provider archive import.
- *
- * @see icon_provider_import_form_validate()
- */
-function hook_icon_import_validate($bundle) {
-  if ($bundle['provider'] === 'my_provider') {
-    if ($condition === 'condition_met') {
-      return TRUE;
-    }
-    $provider = icon_provider_load($bundle['provider']);
-    return t('Invalid %provider bundle.', array('%provider' => $provider['title']));
-  }
-}
-
-/**
  * Allow extensions to be grouped together with Icon API on the permissions table.
  * 
  * @return The same type of array in hook_permission().
@@ -210,6 +181,9 @@ function hook_icon_permission() {
 /**
  * Define information about icon providers.
  *
+ * To provide archived file import support, a provider must implement
+ * hook_icon_PROVIDER_import_process() and hook_icon_PROVIDER_import_validate().
+ *
  * @return $providers
  *   An associative array containing:
  *   - provider_name: A unique machine name and an associative array containing:
@@ -219,9 +193,12 @@ function hook_icon_permission() {
  *     - default bundle: Optional, an array containing default bundle properties
  *       specific to this provider.
  *
+ * @see icon_icon_providers()
  * @see icon_provider_load()
  * @see icon_providers()
  * @see icon_provider_defaults()
+ * @see hook_icon_PROVIDER_import_process()
+ * @see hook_icon_PROVIDER_import_validate()
  */
 function hook_icon_providers() {
   $providers['my_provider'] = array(
@@ -233,6 +210,32 @@ function hook_icon_providers() {
     ),
   );
   return $providers;
+}
+
+/**
+ * Allow extensions to properly process the bundle after it has been extracted
+ * to the proper location and successfully imported. This is typically the step
+ * where most logic should take place to determine available icons and settings.
+ * This is the step right before it is saved to the database.
+ *
+ * @see icon_provider_import_form_submit()
+ */
+function hook_icon_PROVIDER_import_process(&$bundle) {
+  // Process the $bundle data here...
+}
+
+/**
+ * Validate callback for provider archive import. Must return TRUE to claim
+ * bundle.
+ *
+ * @see icon_provider_import_form_validate()
+ */
+function hook_icon_PROVIDER_import_validate($bundle) {
+  if ($condition === 'condition_met') {
+    return TRUE;
+  }
+  $provider = icon_provider_load($bundle['provider']);
+  return t('Invalid %provider bundle.', array('%provider' => $provider['title']));
 }
 
 /*

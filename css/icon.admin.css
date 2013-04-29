@@ -1,7 +1,7 @@
 td.compact {
   width: 0;
 }
-td.compact a, td.compact ul.inline {
+td.nowrap {
   white-space: nowrap;
 }
 td.center {
