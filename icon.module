@@ -274,7 +274,7 @@ function icon_bundles($name = NULL, $reset = FALSE) {
         ->fields('b')
         ->execute();
       foreach ($database_bundles as $database_bundle) {
-        $bundle = unserialize($database_bundle->data);
+        $bundle = unserialize($database_bundle->bundle);
         if ($bundle === FALSE) {
           $bundle = array();
         }

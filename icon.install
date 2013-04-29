@@ -19,8 +19,8 @@ function icon_schema() {
         'not null' => TRUE,
         'default' => '',
       ),
-      'data' => array(
-        'description' => 'The data pertaining to icon bundle.',
+      'bundle' => array(
+        'description' => 'The array data belonging to the icon bundle.',
         'type' => 'blob',
         'serialize' => TRUE,
         'size' => 'big',
@@ -36,16 +36,6 @@ function icon_schema() {
     'primary key' => array('name'),
   );
   return $schema;
-}
-
-/**
- * Implements hook_uninstall().
- */
-function icon_uninstall() {
-  // Remove fontello variables.
-  db_delete('variable')
-  ->condition('name', 'icon_%', 'LIKE')
-  ->execute();
 }
 
 /**
