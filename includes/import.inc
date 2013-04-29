@@ -135,11 +135,18 @@ function icon_provider_import_form_submit($form, &$form_state) {
   // Invoke hook_icon_import_process().
   icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_import_process', $bundle);
   // Save the bundle to the database.
-  if (!icon_bundle_save($bundle['name'], $bundle, 1)) {
-    drupal_set_message(t('An error occurred while attemping to save the imported icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
+  if (!icon_bundle_save($bundle)) {
+    drupal_set_message(t('An error occurred while attemping to import the %provider icon bundle: %bundle.', array('%provider' => $provider['title'], '%bundle' => $bundle['title'])), 'error');
     return;
   }
-  drupal_set_message(t('The icon bundle %bundle was successfully imported.', array('%bundle' => $bundle['title'])));
+  drupal_set_message(t('The %provider icon bundle %bundle was successfully imported.', array('%provider' => $provider['title'], '%bundle' => $bundle['title'])));
   // Clear the caches so the new bundle shows up.
   icon_clear_all_caches();
+  // Redirect to the bundle configuration if there are settings to configure.
+  module_load_include('inc', 'icon', 'includes/admin');
+  $config_form = drupal_get_form('icon_bundle_configure_form', $bundle);
+  $settings = element_children($config_form['settings']);
+  if (!empty($settings)) {
+    $form_state['redirect'] = array(ICON_ADMIN_PATH . '/bundle/' . $bundle['name'] . '/configure');
+  }
 }

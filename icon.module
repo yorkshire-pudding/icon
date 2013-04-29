@@ -352,14 +352,13 @@ function icon_bundle_delete(array $bundle = array()) {
  *   TRUE if successful, FALSE if the bundle is already disabled or on failure.
  */
 function icon_bundle_disable(array $bundle = array()) {
-  if (!empty($bundle['name']) && icon_bundle_load($bundle['name']) && icon_bundle_save($bundle['name'], NULL, 0)) {
+  $bundle['status'] = 0;
+  if (icon_bundle_save($bundle)) {
     drupal_set_message(t('The icon bundle %bundle has been disabled.', array('%bundle' => $bundle['title'])));
     icon_clear_all_caches();
     return TRUE;
   }
-  else {
-    drupal_set_message(t('An error occurred while attemping to disable the icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
-  }
+  drupal_set_message(t('An error occurred while attemping to disable the icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
   return FALSE;
 }
 
@@ -373,14 +372,13 @@ function icon_bundle_disable(array $bundle = array()) {
  *   TRUE if successful, FALSE if the bundle is already enabled or on failure.
  */
 function icon_bundle_enable(array $bundle = array()) {
-  if (!empty($bundle['name']) && icon_bundle_load($bundle['name']) && icon_bundle_save($bundle['name'], NULL, 1)) {
+  $bundle['status'] = 1;
+  if (icon_bundle_save($bundle)) {
     drupal_set_message(t('The icon bundle %bundle has been enabled.', array('%bundle' => $bundle['title'])));
     icon_clear_all_caches();
     return TRUE;
   }
-  else {
-    drupal_set_message(t('An error occurred while attemping to enable the icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
-  }
+  drupal_set_message(t('An error occurred while attemping to enable the icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
   return FALSE;
 }
 
@@ -421,39 +419,51 @@ function icon_bundle_load($name) {
 /**
  * Save an icon bundle in the {icon_bundle} table.
  *
- * @param $name
- *   The machine name of the bundle.
- * @param $bundle
- *   The bundle data array. Only use when saving a bundle from a provider or
- *   when overriding a bundle that was provided by an extension.
- * @param $status
- *   0 = Disabled, 1 = Enabled. Only use when necessary (for enabling and disabling).
+ * @param array $bundle
+ *   The icon bundle array.
  *
  * @return
  *   If the save failed, returns FALSE. If successful, returns SAVED_NEW or
  *   SAVED_UPDATED, depending on the drupal_write_record() operation
  *   that was performed.
  */
-function icon_bundle_save($name, $bundle = array(), $status = NULL) {
-  // Allow extensions to alter the record before it's saved.
-  drupal_alter('icon_bundle_save', $name, $bundle, $status);
+function icon_bundle_save(array $bundle = array()) {
+  if (empty($bundle['name'])) {
+    return FALSE;
+  }
+  // Allow extensions to alter the bundle before it's saved.
+  drupal_alter('icon_bundle_save', $bundle);
   $primary_keys = array();
   $record = array(
-    'name' => $name,
+    'name' => $bundle['name'],
   );
-  $existing_bundle = icon_bundle_load($name);
-  if ($existing_bundle && !empty($existing_bundle['database'])) {
+  $existing_bundle = icon_bundle_load($bundle['name']);
+  if (!$existing_bundle) {
+    $existing_bundle = array();
+  }
+  // If the existing bundle is from the database, update the record.
+  if (!empty($existing_bundle['database'])) {
     $primary_keys[] = 'name';
   }
-  if (!empty($bundle)) {
-    $record['data'] = $bundle;
+  // Determine if there are differences between an existing bundle and this one.
+  $diff = icon_array_diff_recursive($existing_bundle, $bundle);
+  // If the status has changed, update the status field.
+  if (isset($diff['status'])) {
+    $record['status'] = (int) $bundle['status'];
+    // Remove status from $diff to determine if anything else needs to be saved.
+    unset($diff['status']);
   }
-  if (!is_null($status)) {
-    $record['status'] = (int) $status;
+  // If there are still differences, replace the entire {icon_bundle}.bundle
+  // field with the updated bundle array.
+  if (!empty($diff)) {
+    $record['bundle'] = $bundle;
   }
-  if ($status = drupal_write_record('icon_bundle', $record, $primary_keys)) {
-    icon_clear_all_caches();
-    return $status;
+  // Only write to the database if necessary.
+  if (isset($record['status']) || isset($record['bundle'])) {
+    if ($status = drupal_write_record('icon_bundle', $record, $primary_keys)) {
+      icon_clear_all_caches();
+      return $status;
+    }
   }
   return FALSE;
 }

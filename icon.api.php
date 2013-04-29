@@ -147,14 +147,16 @@ function hook_icon_bundle_delete($bundle) {
 /**
  * Allow extensions to alter the bundle record before saving it to the database.
  */
-function hook_icon_bundle_save_alter(&$record) {
-  $bundle = icon_bundle_load($record['name']);
-  if ($bundle && $bundle['name'] === 'my_bundle') {
-    $bundle['settings']['custom_property'] = 'custom_value';
+function hook_icon_bundle_save_alter(&$bundle) {
+  if ($bundle['name'] === 'my_bundle' || $bundle['provider'] === 'my_provider') {
     // Rename the bundle, this would effectively clone an existing bundle.
-    $record['name'] = 'rename_bundle_machine_name';
-    $record['data'] = $bundle;
-    $record['status'] = variable_get('my_conditional_variable', 1);
+    // Warning: make sure you don't rename to an existing bundle name as this
+    // would overwrite/override it.
+    $bundle['name'] = 'rename_bundle_machine_name';
+    // Set/override bundle settings.
+    $bundle['settings']['custom_property'] = 'custom_value';
+    // Change the enabled status of the bundle.
+    $bundle['status'] = variable_get('my_conditional_variable', 1);
   }
 }
 

@@ -193,8 +193,11 @@ function icon_bundle_configure_form_submit($form, &$form_state) {
     return;
   }
   $form_state['redirect'] = array(ICON_ADMIN_PATH);
+  form_state_values_clean($form_state);
   $bundle = icon_array_merge_recursive($bundle, $form_state['values']);
-  icon_bundle_save($bundle['name'], $bundle, $bundle['status']);
+  if (icon_bundle_save($bundle)) {
+    drupal_set_message(t('Configuration for icon bundle %bundle has been saved.', array('%bundle' => $bundle['title'])));
+  }
 }
 
 function icon_bundle_delete_form($form, $form_state, $bundle) {
