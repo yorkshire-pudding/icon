@@ -19,6 +19,23 @@ foreach ($includes as $include) {
 }
 
 /**
+ * Implements hook_hook_info().
+ */
+function icon_hook_info() {
+  $icon_hooks = array(
+    'icon_bundles',
+    'icon_bundle_delete',
+    'icon_permission',
+    'icon_providers',
+    'icon_render_hooks',
+  );
+  foreach ($icon_hooks as $hook) {
+    $hooks[$hook] = array('group' => 'icon');
+  }
+  return $hooks;
+}
+
+/**
  * Implements hook_library().
  */
 function icon_library() {
