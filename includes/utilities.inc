@@ -83,6 +83,41 @@ function &icon_array_merge_recursive(array &$array1, &$array2 = NULL) {
 }
 
 /**
+ * Determine the recursive differences between two arrays.
+ *
+ * @param array $array1
+ *   The first array.
+ * @param array $array2
+ *   The second array.
+ *
+ * @return array
+ *   If $array2 differs in any way from $array1, the differences will be
+ *   returned in an array. If there are no differences, the array will be empty.
+ */
+function icon_array_diff_recursive(array $array1, array $array2) {
+  $diff = array();
+  foreach ($array2 as $key => $value) {
+    if (array_key_exists($key, $array1)) {
+      if (is_array($value)) {
+        $recursive_diff = icon_array_diff_recursive($array1[$key], $value);
+        if (count($recursive_diff)) {
+          $diff[$key] = $recursive_diff;
+        }
+      }
+      else {
+        if ($value !== $array1[$key]) {
+          $diff[$key] = $value;
+        }
+      }
+    }
+    else {
+      $diff[$key] = $value;
+    }
+  }
+  return $diff;
+}
+
+/**
  * Determines whether an extension implements a hook.
  *
  * @param $type
