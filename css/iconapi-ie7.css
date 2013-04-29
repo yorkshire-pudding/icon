@@ -10,13 +10,13 @@
   /* font-size: 120%; */
 }
  
-.iconapi-admin-plus { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff2;&nbsp;'); }
-.iconapi-admin-minus { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff3;&nbsp;'); }
-.iconapi-admin-cog { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff6;&nbsp;'); }
-.iconapi-admin-pencil { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff5;&nbsp;'); }
-.iconapi-admin-check { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff0;&nbsp;'); }
-.iconapi-admin-cancel { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff1;&nbsp;'); }
-.iconapi-admin-select { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff7;&nbsp;'); }
-.iconapi-admin-right-open { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff8;&nbsp;'); }
-.iconapi-admin-upload { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff4;&nbsp;'); }
-.iconapi-admin-throbber { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff9;&nbsp;'); }
+.iconapi-add { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff3;&nbsp;'); }
+.iconapi-configure { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff6;&nbsp;'); }
+.iconapi-edit { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff5;&nbsp;'); }
+.iconapi-check { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff1;&nbsp;'); }
+.iconapi-delete { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff2;&nbsp;'); }
+.iconapi-select { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff7;&nbsp;'); }
+.iconapi-right { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff8;&nbsp;'); }
+.iconapi-upload { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff4;&nbsp;'); }
+.iconapi-throbber { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff9;&nbsp;'); }
+.iconapi-view { *zoom: expression( this.runtimeStyle['zoom'] = '1', this.innerHTML = '&#xefff0;&nbsp;'); }
