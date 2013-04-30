@@ -316,7 +316,8 @@ function icon_find_theme_include($theme) {
       $includes = array_keys(drupal_system_listing('/icon.inc|icons.inc$/', 'themes', 'uri', 0));
     }
     foreach ($includes as $uri) {
-      if (strpos($uri, drupal_get_path('theme', $theme)) !== FALSE) {
+      $theme_path = drupal_get_path('theme', $theme);
+      if (!empty($theme_path) && strpos($uri, $theme_path) !== FALSE) {
         $themes[$theme] = $uri;
         break;
       }
