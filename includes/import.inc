@@ -63,7 +63,6 @@ function icon_provider_import_form_validate($form, &$form_state) {
   $validators = array('file_validate_extensions' => array($valid_extensions));
   if (!$file = file_save_upload('file', $validators, NULL, FILE_EXISTS_REPLACE)) {
     form_set_error('file');
-    file_delete($file);
     return;
   }
   // Extract the archive. This needs to be done now so providers can validate
