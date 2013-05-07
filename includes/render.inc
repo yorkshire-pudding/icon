@@ -32,8 +32,14 @@ function icon_preprocess_icon_image(&$variables) {
   if (!isset($bundle['settings']['extension'])) {
     $bundle['settings']['extension'] = 'png';
   }
-  // Add custom classes here.
-  $variables['attributes']['class'][] = $icon;
+  // Sanitize and add icon class here.
+  $class = drupal_html_class($icon);
+  // Check to see if image starts with a alpha-numeric character. If it doesn't,
+  // prepend it so it can be a proper CSS class.
+  if (is_numeric($class[0])) {
+    $class = 'image-' . $class;
+  }
+  $variables['attributes']['class'][] = $class;
 }
 
 /**
@@ -69,8 +75,9 @@ function icon_preprocess_icon_sprite(&$variables) {
   if (!isset($bundle['settings']['content'])) {
     $bundle['settings']['content'] = '';
   }
-  // Add custom classes here.
-  $variables['attributes']['class'][] = $icon;
+  // Sanitize and add icon class here. Don't need to check for numeric because
+  // these are already CSS class name based.
+  $variables['attributes']['class'][] = drupal_html_class($icon);
 }
 
 /**
