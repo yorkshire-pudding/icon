@@ -267,7 +267,7 @@ function icon_enabled_themes() {
  * @return
  *    The URI of the moved file or directory, or FALSE in the event of an error.
  */
-function icon_file_move($source, $destination = NULL, $rename = FALSE, $replace = FILE_EXISTS_REPLACE, $depth = 0) {
+function icon_file_move_recursive($source, $destination = NULL, $rename = FALSE, $replace = FILE_EXISTS_REPLACE, $depth = 0) {
   if (is_dir($source)) {
     if (!$depth) {
       $destination .= '/' . ($rename ? $rename : drupal_basename($source));
@@ -281,7 +281,7 @@ function icon_file_move($source, $destination = NULL, $rename = FALSE, $replace 
       }
       $source_file = $source . '/' . $file;
       $destination_file = $destination . '/' . $file;
-      if (!icon_file_move($source_file, $destination_file, FALSE, $replace, $depth + 1)) {
+      if (!icon_file_move_recursive($source_file, $destination_file, FALSE, $replace, $depth + 1)) {
         $dir->close();
         return FALSE;
       }

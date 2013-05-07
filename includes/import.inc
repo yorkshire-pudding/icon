@@ -117,7 +117,7 @@ function icon_provider_import_form_validate($form, &$form_state) {
   $bundle['provider'] = $provider['name'];
   $bundle['import'] = TRUE;
   // Move the extracted archive to a permanent location.
-  if (!$bundle['path'] = icon_file_move($bundle['path'], 'public://icon/' . $bundle['provider'], $bundle['name'])) {
+  if (!$bundle['path'] = icon_file_move_recursive($bundle['path'], 'public://icon/' . $bundle['provider'], $bundle['name'])) {
     form_set_error('file', t('An error occured while attempting to extract the uploaded archive. Check the logs for more details.'));
   }
   // Delete the uploaded archive file and temporary directory.
