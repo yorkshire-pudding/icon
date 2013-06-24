@@ -103,7 +103,7 @@ function icon_provider_import_form_validate($form, &$form_state) {
   }
   // A specific provider was selected, show the validation errors.
   else {
-    $bundle['provider'] = $_provider['name'];
+    $bundle['provider'] = $provider['name'];
     $validation = icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_' . $provider['name'] . '_import_validate', $bundle);
     if ($validation !== TRUE) {
       form_set_error('file', $validation);
