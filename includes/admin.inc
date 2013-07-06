@@ -8,7 +8,7 @@
 /**
  * Icon Bundle Overview Form
  */
-function icon_bundle_overview_form($form, $form_state) {
+function icon_bundle_overview_form($form, &$form_state) {
   $module_path = drupal_get_path('module', 'icon');
   $form['#attached'] = array(
     'css' => array(
