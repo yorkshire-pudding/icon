@@ -32,6 +32,7 @@ function icon_block_preprocess_block(&$variables) {
   $settings = array_merge(icon_block_defaults(), isset($block->icon) ? (array) unserialize($block->icon) : array());
   if (!empty($settings['bundle']) && !empty($settings['icon'])) {
     if ($icon = theme('icon', array('bundle' => $settings['bundle'], 'icon' => $settings['icon']))) {
+      $variables['classes_array'][] = 'has-icon';
       switch ($settings['position']) {
         case 'title_before': $variables['title_prefix'][] = array('#markup' => $icon); break;
         case 'title_after': $variables['title_suffix'][] = array('#markup' => $icon); break;
