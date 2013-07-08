@@ -89,7 +89,7 @@ function icon_field_feeds_set_target($source, $entity, $target, $value, $mapping
  */
 function _icon_field_get_bundle_options() {
   $options = array();
-  foreach(icon_bundles() as $name => $bundle) {
+  foreach (icon_bundles() as $name => $bundle) {
     $options[$name] = $bundle['title'];
   }
   return $options;
