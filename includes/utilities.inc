@@ -32,6 +32,8 @@ function icon_archive_extract($file, $directory) {
     $archiver->extract($directory);
   }
   catch (Exception $e) {
+    // Close opened archive before trying to delete it.
+    $archiver->getArchive()->close();
     if (file_exists($extract_location)) {
       file_unmanaged_delete_recursive($extract_location);
     }
@@ -268,13 +270,13 @@ function icon_enabled_themes() {
  *    The URI of the moved file or directory, or FALSE in the event of an error.
  */
 function icon_file_move_recursive($source, $destination = NULL, $rename = FALSE, $replace = FILE_EXISTS_REPLACE, $depth = 0) {
-  if (is_dir($source)) {
+  if (is_dir(drupal_realpath($source))) {
     if (!$depth) {
       $destination .= '/' . ($rename ? $rename : drupal_basename($source));
-      file_unmanaged_delete_recursive($destination);
+      file_unmanaged_delete_recursive(drupal_realpath($destination));
     }
     file_prepare_directory($destination, FILE_CREATE_DIRECTORY);
-    $dir = dir($source);
+    $dir = dir(drupal_realpath($source));
     while (($file = $dir->read()) !== FALSE) {
       if ($file == '.' || $file == '..') {
         continue;
@@ -287,12 +289,12 @@ function icon_file_move_recursive($source, $destination = NULL, $rename = FALSE,
       }
     }
     $dir->close();
-    if (!file_unmanaged_delete_recursive($source)) {
+    if (!file_unmanaged_delete_recursive(drupal_realpath($source))) {
       return FALSE;
     }
     return $destination;
   }
-  elseif (is_file($source)) {
+  elseif (is_file(drupal_realpath($source))) {
     return file_unmanaged_copy($source, $destination, $replace);
   }
   return FALSE;

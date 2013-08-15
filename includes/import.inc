@@ -69,7 +69,7 @@ function icon_provider_import_form_validate($form, &$form_state) {
   // against the archive file contents.
   $temp_dir = 'temporary://icon_api_' . md5(REQUEST_TIME);
   try {
-    $archive = icon_archive_extract(drupal_realpath($file->uri), drupal_realpath($temp_dir));
+    $archiver = icon_archive_extract(drupal_realpath($file->uri), drupal_realpath($temp_dir));
   }
   catch (Exception $e) {
     form_set_error('file', $e->getMessage());
@@ -78,7 +78,7 @@ function icon_provider_import_form_validate($form, &$form_state) {
     return;
   }
   // Set the archive extraction path temporarily as the bundle path.
-  $bundle['path'] = $temp_dir . '/' . $archive->dir;
+  $bundle['path'] = $temp_dir . '/' . $archiver->dir;
   // Automatic detection. Iterate over each provider and find the first one that
   // can import the archive file.
   if (!$provider) {
@@ -96,6 +96,8 @@ function icon_provider_import_form_validate($form, &$form_state) {
       form_set_error('file', t('Unable to automatically detect which provider should be used to import %file. Try manually selecting which provider to use or re-download the archive file from the provider.', array(
         '%file' => $file->filename,
       )));
+      // Close opened archive before trying to delete it.
+      $archiver->getArchive()->close();
       file_delete($file);
       file_unmanaged_delete_recursive($temp_dir);
       return;
@@ -107,6 +109,8 @@ function icon_provider_import_form_validate($form, &$form_state) {
     $validation = icon_extension_invoke($provider['type'], $provider[$provider['type']], 'icon_' . $provider['name'] . '_import_validate', $bundle);
     if ($validation !== TRUE) {
       form_set_error('file', $validation);
+      // Close opened archive before trying to delete it.
+      $archiver->getArchive()->close();
       file_delete($file);
       file_unmanaged_delete_recursive($temp_dir);
       return;
@@ -120,6 +124,8 @@ function icon_provider_import_form_validate($form, &$form_state) {
   if (!$bundle['path'] = icon_file_move_recursive($bundle['path'], 'public://icon/' . $bundle['provider'], $bundle['name'])) {
     form_set_error('file', t('An error occured while attempting to extract the uploaded archive. Check the logs for more details.'));
   }
+  // Close opened archive before trying to delete it.
+  $archiver->getArchive()->close();
   // Delete the uploaded archive file and temporary directory.
   file_delete($file);
   file_unmanaged_delete_recursive($temp_dir);
