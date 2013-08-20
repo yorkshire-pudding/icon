@@ -140,7 +140,7 @@ function theme_icon_bundle_overview_form($variables) {
   return $output;
 }
 
-function icon_bundle_configure_form($form, $form_state, $bundle) {
+function icon_bundle_configure_form($form, &$form_state, $bundle) {
   drupal_set_title(t('Configure %bundle icons', array('%bundle' => $bundle['title'])), PASS_THROUGH);
   $form_state['bundle'] = $bundle;
   $form['status'] = array(
