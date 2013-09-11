@@ -45,7 +45,7 @@ function icon_menu_menu_breadcrumb_alter(&$active_trail, &$item) {
  * Implements hook_preprocess_link().
  */
 function icon_menu_preprocess_link(&$variables) {
-  if (!empty($variables['options']) && !empty($variables['options']['icon']) && !empty($variables['options']['icon']['bundle']) && !empty($variables['options']['icon']['icon'])) {
+  if (!empty($variables['options']) && !empty($variables['options']['icon']) && !empty($variables['options']['icon']['bundle']) && !empty($variables['options']['icon']['icon']) && (empty($variables['options']['icon']['processed']) || !($variables['options']['icon']['processed']))) {
     $settings =  $variables['options']['icon'];
     if ($icon = theme('icon', array('bundle' => $settings['bundle'], 'icon' => $settings['icon']))) {
       // Force link to render HTML.
@@ -57,6 +57,7 @@ function icon_menu_preprocess_link(&$variables) {
         case 'title_before': $variables['text'] = $icon . $variables['text']; break;
         case 'title_after': $variables['text'] .= $icon; break;
       }
+      $variables['options']['icon']['processed'] = true;
     }
   }
 }
@@ -104,7 +105,7 @@ function _icon_menu_form_alter(array &$form, array $item = array(), array &$comp
   if (isset($form['options']['#value']['icon'])) {
     unset($form['options']['#value']['icon']);
   }
-  // Determine proper parent names for states.  
+  // Determine proper parent names for states.
   $parents = 'options[icon]';
   if (isset($complete_form['menu']['link']) && isset($complete_form['#node']->menu)) {
     $parents = 'menu[options][icon]';
