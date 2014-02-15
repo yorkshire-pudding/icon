@@ -113,6 +113,19 @@ function hook_icon_bundles_alter(&$bundle) {
 }
 
 /**
+ * Allow extensions to alter a bundle listing before it's viewed.
+ *
+ * @param array $build
+ *   The render array passed by reference.
+ * @param array $bundle
+ *   The bundle array used for context.
+ *
+ * @see icon_bundle_list()
+ */
+function hook_icon_bundle_list_alter(&$build, $bundle) {
+}
+
+/**
  * Implements hook_preprocess_icon().
  *
  * @see icon_preprocess_icon_image()

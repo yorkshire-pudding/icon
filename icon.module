@@ -25,6 +25,7 @@ function icon_hook_info() {
   $icon_hooks = array(
     'icon_bundles',
     'icon_bundle_delete',
+    'icon_bundle_list_alter',
     'icon_permission',
     'icon_providers',
     'icon_render_hooks',
