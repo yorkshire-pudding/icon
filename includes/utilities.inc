@@ -21,12 +21,23 @@ function icon_archive_extract($file, $directory) {
   if (!$archiver) {
     throw new Exception(t('Cannot extract %file, not a valid archive.', array('%file' => $file)));
   }
-  file_prepare_directory($directory, FILE_CREATE_DIRECTORY);
   $files = $archiver->listContents();
-  $sub_directory = strtok($files[0], '/\\');
-  $extract_location = $directory . '/' . $sub_directory;
+  $archiver->sub_directory = FALSE;
+  // If there is only one directory, then the contents are likely wrapped.
+  if (count($files) === 1 && substr($files[0], -1, 1) === '/') {
+    $archiver->sub_directory = strtok($files[0], '/\\');
+    $extract_location = $directory . '/' . $archiver->sub_directory;
+  }
+  else {
+    $extract_location = $directory;
+  }
   if (file_exists($extract_location)) {
     file_unmanaged_delete_recursive($extract_location);
+  }
+  if (!file_prepare_directory($directory, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+    throw new Exception(t('Unable to extract the archive. Please check that your Drupal <a href="!file">file system</a> is correctly configured.', array(
+      '!file' => url('admin/config/media/file-system'),
+    )));
   }
   try {
     $archiver->extract($directory);
@@ -41,7 +52,6 @@ function icon_archive_extract($file, $directory) {
     throw new Exception($e->getMessage());
     return;
   }
-  $archiver->dir = $sub_directory;
   return $archiver;
 }
 
@@ -275,7 +285,9 @@ function icon_file_move_recursive($source, $destination = NULL, $rename = FALSE,
       $destination .= '/' . ($rename ? $rename : drupal_basename($source));
       file_unmanaged_delete_recursive(drupal_realpath($destination));
     }
-    file_prepare_directory($destination, FILE_CREATE_DIRECTORY);
+    if (!file_prepare_directory($destination, FILE_CREATE_DIRECTORY | FILE_MODIFY_PERMISSIONS)) {
+      return FALSE;
+    }
     $dir = dir(drupal_realpath($source));
     while (($file = $dir->read()) !== FALSE) {
       if ($file == '.' || $file == '..') {

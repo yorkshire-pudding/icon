@@ -78,7 +78,7 @@ function icon_provider_import_form_validate($form, &$form_state) {
     return;
   }
   // Set the archive extraction path temporarily as the bundle path.
-  $bundle['path'] = $temp_dir . '/' . $archiver->dir;
+  $bundle['path'] = ($archiver->sub_directory ? $temp_dir . '/' . $archiver->sub_directory : $temp_dir);
   // Automatic detection. Iterate over each provider and find the first one that
   // can import the archive file.
   if (!$provider) {
