@@ -147,12 +147,29 @@ function hook_process_icon(&$variables) {
 }
 
 /**
- * Allow extensions to run additional tasks with the bundle's data array after
- * it was successfully deleted.
+ * Perform actions after a bundle has been deleted.
+ *
+ * This hook is invoked after a bundle has been removed from the database and
+ * filesystem. This hook simply allows extensions to run additional tasks with
+ * the bundle's data array as context after it has been successfully deleted.
  *
  * @see icon_bundle_delete()
  */
 function hook_icon_bundle_delete($bundle) {
+  // Do something in your custom module, such as removing variables or database
+  // rows in a different table that your custom module is tracking.
+}
+
+/**
+ * Perform actions after a bundle, provided in code, has been reset.
+ *
+ * This hook is invoked after a bundle's configuration has been removed from
+ * the database. This hook simply allows extensions to run additional tasks
+ * with the bundle's data array as context after it has been successfully reset.
+ *
+ * @see icon_bundle_delete()
+ */
+function hook_icon_bundle_reset($bundle) {
   // Do something in your custom module, such as removing variables or database
   // rows in a different table that your custom module is tracking.
 }

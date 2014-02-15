@@ -337,29 +337,40 @@ function icon_bundles($name = NULL, $reset = FALSE) {
  * @param array $bundle
  *   The icon bundle array.
  *
- * @return boolean
- *   TRUE if successful, FALSE if bundle doesn't exist in database or on failure.
+ * @return bool
+ *   TRUE if successful, FALSE if bundle does not exist or on failure.
  */
 function icon_bundle_delete(array $bundle = array()) {
   if (empty($bundle['name']) || !icon_bundle_load($bundle['name'])) {
     return FALSE;
   }
-  $hook = 'icon_bundle_delete';
-  $query = db_delete('icon_bundle')->condition('name', $bundle['name']);
-  // Allow extensions to alter the query before executing.
-  drupal_alter($hook, $query);
   // Execute the query.
-  if ($query->execute()) {
-    // Invoke hook_icon_bundle_delete().
+  try {
+    // Execute query and remove database entries.
+    db_delete('icon_bundle')->condition('name', $bundle['name'])->execute();
+    // Delete files if not in code and path starts in public folder and exists.
+    if (empty($bundle['overridden']) && strpos($bundle['path'], 'public://') === 0 && file_exists($bundle['path'])) {
+      file_unmanaged_delete_recursive($bundle['path']);
+    }
+    // Determine which hook to invoke.
+    $hook = 'icon_bundle_' . (!empty($bundle['overridden']) ? t('reset') : t('delete'));
+    // Invoke hook_icon_bundle_reset() or hook_icon_bundle_delete() accordingly.
     foreach (icon_extension_implements($hook) as $extension => $type) {
       icon_extension_invoke($type, $extension, $hook, $bundle);
     }
     icon_clear_all_caches();
-    drupal_set_message(t('The icon bundle %bundle has been !action.', array('!action' => (!empty($bundle['overridden']) ? t('reset') : t('deleted')), '%bundle' => $bundle['title'])));
+    drupal_set_message(t('The icon bundle %bundle has been successfully !action.', array(
+      '!action' => (!empty($bundle['overridden']) ? t('reset') : t('deleted')),
+      '%bundle' => $bundle['title'])
+    ));
     return TRUE;
   }
-  else {
-    drupal_set_message(t('An error occurred while attemping to !action the icon bundle: %bundle.', array('!action' => (!empty($bundle['overridden']) ? t('reset') : t('delete')), '%bundle' => $bundle['title'])), 'error');
+  catch (Exception $e) {
+    drupal_set_message(t('An error occurred while attempting to !action the icon bundle "%bundle":<br /><code>@message</code>', array(
+      '!action' => (!empty($bundle['overridden']) ? t('reset') : t('delete')),
+      '%bundle' => $bundle['title'],
+      '@message' => $e->getMessage(),
+    )), 'error');
   }
   return FALSE;
 }
@@ -370,7 +381,7 @@ function icon_bundle_delete(array $bundle = array()) {
  * @param array $bundle
  *   The icon bundle array.
  *
- * @return boolean
+ * @return bool
  *   TRUE if successful, FALSE if the bundle is already disabled or on failure.
  */
 function icon_bundle_disable(array $bundle = array()) {
