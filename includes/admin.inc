@@ -242,7 +242,13 @@ function icon_bundle_list($bundle) {
       '#theme' => 'icon',
       '#bundle' => $bundle['name'],
       '#icon' => $icon,
+      '#attributes' => array(
+        'title' => $icon,
+      ),
     );
   }
+  // Allow other modules and themes to alter a bundle's listing.
+  $bundle_context = $bundle;
+  drupal_alter('icon_bundle_list', $build, $bundle_context);
   return $build;
 }
