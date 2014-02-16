@@ -68,17 +68,17 @@ function icon_menu() {
   $items = array();
   $items[ICON_ADMIN_PATH] = array(
     'title' => 'Icons',
-    'description' =>  'Provide an overview of all available icons.',
+    'description' => 'Overview of all available icons.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('icon_bundle_overview_form'),
-    'access callback' => TRUE,
+    'access arguments' => array('administer icons'),
     'file' => 'admin.inc',
     'file path' => $module_path . '/includes',
   );
   $items[ICON_ADMIN_PATH . '/overview'] = array(
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'title' => 'Bundles',
-    'description' =>  'Provide an overview of all available icon bundles.',
+    'description' => 'Overview of all available icon bundles.',
     'weight' => -10,
   );
   $import_providers = icon_providers_support_import();
@@ -86,7 +86,7 @@ function icon_menu() {
     $items[ICON_ADMIN_PATH . '/import'] = array(
       'type' => MENU_LOCAL_TASK,
       'title' => 'Import',
-      'description' =>  'Import a bundle from a provider.',
+      'description' => 'Import a bundle from a provider.',
       'page callback' => 'drupal_get_form',
       'page arguments' => array('icon_provider_import_form'),
       'access arguments' => array('administer icons'),
@@ -97,10 +97,10 @@ function icon_menu() {
   $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle'] = array(
     'title callback' => 'icon_bundle_get_title',
     'title arguments' => array(5),
-    'description' =>  'An icon bundle.',
+    'description' => 'An icon bundle.',
     'page callback' => 'icon_bundle_list',
     'page arguments' => array(5),
-    'access callback' => TRUE,
+    'access arguments' => array('administer icons'),
     'theme callback' => 'icon_bundle_get_theme',
     'theme arguments' => array(5),
     'file' => 'admin.inc',
@@ -109,13 +109,13 @@ function icon_menu() {
   $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/icons'] = array(
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'title' => 'Icons',
-    'description' =>  'Provide an overview of all available icon bundles.',
+    'description' => 'Provide an overview of all available icon bundles.',
     'weight' => -10,
   );
   $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/configure'] = array(
     'type' => MENU_LOCAL_TASK,
     'title' => 'Configure',
-    'description' =>  'Form callback for configuring an icon bundle.',
+    'description' => 'Form callback for configuring an icon bundle.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('icon_bundle_configure_form', 5),
     'access arguments' => array('administer icons'),
@@ -124,7 +124,7 @@ function icon_menu() {
   );
   $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/delete'] = array(
     'title' => 'Delete',
-    'description' =>  'Confirmation page for deleting an icon bundle from the database.',
+    'description' => 'Confirmation page for deleting an icon bundle from the database.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('icon_bundle_delete_form', 5),
     'type' => MENU_CALLBACK,
@@ -134,7 +134,7 @@ function icon_menu() {
   );
   $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle/reset'] = array(
     'title' => 'Reset',
-    'description' =>  'Confirmation page for resetting a module or theme provided bundle that has been overridden in the database.',
+    'description' => 'Confirmation page for resetting a module or theme provided bundle that has been overridden in the database.',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('icon_bundle_reset_form', 5),
     'type' => MENU_CALLBACK,
@@ -142,11 +142,29 @@ function icon_menu() {
     'file' => 'admin.inc',
     'file path' => $module_path . '/includes',
   );
+
+  // Create a path alias for users with the "view icons" permission.
+  $view_path_alias = variable_get('icon_api_view_path_alias');
+  // If variable is not set and path is not taken, set it.
+  if ($view_path_alias === NULL && !menu_get_item('icons')) {
+    $view_path_alias = 'icons';
+    variable_set('icon_api_view_path_alias', $view_path_alias);
+  }
+  if (!empty($view_path_alias)) {
+    $items[$view_path_alias] = $items[ICON_ADMIN_PATH];
+    $items[$view_path_alias]['access arguments'] = array('view icons');
+    $items[$view_path_alias . '/%icon_bundle'] = $items[ICON_ADMIN_PATH . '/bundle/%icon_bundle'];
+    $items[$view_path_alias . '/%icon_bundle']['access arguments'] = array('view icons');
+    $items[$view_path_alias . '/%icon_bundle']['title arguments'] = array(1);
+    $items[$view_path_alias . '/%icon_bundle']['page arguments'] = array(1);
+    $items[$view_path_alias . '/%icon_bundle']['theme arguments'] = array(1);
+  }
   return $items;
 }
 
 /**
  * Implements hook_permission().
+ *
  * Invokes hook_icon_permission() so sub-modules can be grouped together with
  * the Icon API module on the permissions table.
  */
@@ -156,6 +174,10 @@ function icon_permission() {
       'title' => t('Administer Icons'),
       'description' => t('Grants selected roles full administrative permissions for all aspects of the Icon API. It supersedes all permissions below.'),
       'restrict access' => TRUE,
+    ),
+    'view icons' => array(
+      'title' => t('View Icons'),
+      'description' => t('Grants selected roles permission to view all icons in enabled bundles.'),
     ),
   ), module_invoke_all('icon_permission'));
 }
