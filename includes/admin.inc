@@ -78,7 +78,7 @@ function icon_bundle_overview_form_validate($form, $form_state) {
     form_set_error('', t('You are not authorized to submit this form.'));
   }
   $view_path_alias = $form_state['values']['icon_api_view_path_alias'];
-  if (menu_get_item($view_path_alias)) {
+  if ($form['global']['icon_api_view_path_alias']['#default_value'] !== $form_state['values']['icon_api_view_path_alias'] && menu_get_item($view_path_alias)) {
     form_set_error('icon_api_view_path_alias', t('The view path alias provided, "%url", is already in use. Please enter a different path.', array(
       '%url' => $view_path_alias,
     )));
