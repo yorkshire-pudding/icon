@@ -1,10 +1,13 @@
 <?php
-
 /**
- * @file import.inc
+ * @file
+ * import.inc
  * Provides import administrative callbacks and tasks.
  */
 
+/**
+ * Menu callback for 'icon_provider_import_form'.
+ */
 function icon_provider_import_form($form, $form_state) {
   // Build a list of providers.
   $providers = array(
@@ -49,6 +52,9 @@ function icon_provider_import_form($form, $form_state) {
   return $form;
 }
 
+/**
+ * Validate callback for 'icon_provider_import_form'.
+ */
 function icon_provider_import_form_validate($form, &$form_state) {
   // Detect the selected provider.
   $form_state['provider'] = icon_providers($form_state['values']['provider']);
@@ -131,6 +137,9 @@ function icon_provider_import_form_validate($form, &$form_state) {
   file_unmanaged_delete_recursive($temp_dir);
 }
 
+/**
+ * Submit callback for 'icon_provider_import_form'.
+ */
 function icon_provider_import_form_submit($form, &$form_state) {
   // Redirect to the overview form after submit.
   $form_state['redirect'] = array(ICON_ADMIN_PATH);
