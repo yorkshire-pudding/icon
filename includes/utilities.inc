@@ -22,14 +22,20 @@ function icon_archive_extract($file, $directory) {
     throw new Exception(t('Cannot extract %file, not a valid archive.', array('%file' => $file)));
   }
   $files = $archiver->listContents();
-  $archiver->sub_directory = FALSE;
-  // If there is only one directory, then the contents are likely wrapped.
-  if (count($files) === 1 && substr($files[0], -1, 1) === '/') {
-    $archiver->sub_directory = strtok($files[0], '/\\');
-    $extract_location = $directory . '/' . $archiver->sub_directory;
+
+  // Determine if archive lives in a wrapped directory matching filename.
+  $info = pathinfo($file);
+  $archiver->sub_directory = str_replace('.' . $info['extension'], '', $info['basename']);
+  foreach ($files as $_file) {
+    $pattern = '/^' . $archiver->sub_directory . '\//';
+    if (!preg_match($pattern, $_file)) {
+      $archiver->sub_directory = FALSE;
+      break;
+    }
   }
-  else {
-    $extract_location = $directory;
+  $extract_location = $directory;
+  if ($archiver->sub_directory) {
+    $extract_location .= '/' . $archiver->sub_directory;
   }
   if (file_exists($extract_location)) {
     file_unmanaged_delete_recursive($extract_location);
