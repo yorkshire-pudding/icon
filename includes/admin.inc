@@ -48,15 +48,31 @@ function icon_bundle_overview_form($form, &$form_state) {
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
   );
+  $view_path = variable_get('icon_api_view_path_alias', 'icons');
   $form['global']['icon_api_view_path_alias'] = array(
     '#type' => 'textfield',
-    '#title' => t('View Path Alias'),
+    '#title' => t('View Path'),
     '#field_prefix' => base_path(),
     '#input_group' => TRUE,
-    '#description' => t('If provided, users with the "view icons" permission will be able to view enabled icons at this URL (defaults to: <code>!url</code>. Change this url if it conflicts with other paths on your site. Leave empty to disable.', array(
-      '!url' => base_path() . 'icons',
+    '#description' => t('If provided, users with the "view icons" permission will be able to view enabled icons at this URL (defaults to: <code>!path</code>. Change this url if it conflicts with other paths on your site. Leave empty to disable.', array(
+      '!path' => base_path() . 'icons',
     )),
-    '#default_value' => variable_get('icon_api_view_path_alias', 'icons'),
+    '#default_value' => $view_path,
+  );
+  // Show warning message for servers running apache.
+  $apache_show_warning = ($view_path === 'icons' && strpos(drupal_strtolower($_SERVER['SERVER_SOFTWARE']), 'nginx') !== FALSE);
+  $apache_suppress_warning = variable_get('icon_api_apache_suppress_warning', FALSE);
+  if ($apache_show_warning && !$apache_suppress_warning) {
+    drupal_set_message(t('<strong>WARNING:</strong> Apache installations are typically configured with a server level alias that redirects "/icons" to an internal directory on the server. It is highly recommended that this be removed from the configuration file for the view path to work properly. If this modification has been made to the server, you may surpress this messages in the global settings below. The only alternative is to change the view path in the global settings below. See: <a href="!link">!link</a>.', array(
+      '!link' => 'https://drupal.org/node/2198427',
+    )), 'warning', FALSE);
+  }
+  // Provide toggle for suppressing warning message.
+  $form['global']['icon_api_apache_suppress_warning'] = array(
+    '#access' => $apache_show_warning,
+    '#type' => 'checkbox',
+    '#title' => t('Suppress the Apache server alias warning'),
+    '#default_value' => $apache_suppress_warning,
   );
   $form['actions'] = array(
     '#access' => $admin,
@@ -103,6 +119,11 @@ function icon_bundle_overview_form_submit($form, $form_state) {
 
     }
     menu_rebuild();
+  }
+  if (isset($form_state['values']['icon_api_apache_suppress_warning'])) {
+    variable_set('icon_api_apache_suppress_warning', $form_state['values']['icon_api_apache_suppress_warning']);
+    // Remove message just set by building the form again.
+    unset($_SESSION['messages']['warning']);
   }
   $bundles = icon_bundles();
   $saved_bundles = $form_state['values']['bundles'];
