@@ -189,7 +189,7 @@ function theme_icon_bundle_overview_form($variables) {
     if ($bundle['status']) {
       $operations['view'] = array(
         'title' => '<i class="iconapi-view"></i>' . t('View Icons'),
-        'href' => ($admin ? ICON_ADMIN_PATH . '/bundle/' : 'icons/') . $bundle['name'],
+        'href' => ($admin && arg(0) === 'admin' ? ICON_ADMIN_PATH . '/bundle/' : variable_get('icon_api_view_path_alias', 'icons') . '/') . $bundle['name'],
         'html' => TRUE,
       );
       if ($admin) {
