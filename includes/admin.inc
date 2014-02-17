@@ -60,7 +60,7 @@ function icon_bundle_overview_form($form, &$form_state) {
     '#default_value' => $view_path,
   );
   // Show warning message for servers running apache.
-  $apache_show_warning = ($view_path === 'icons' && strpos(drupal_strtolower($_SERVER['SERVER_SOFTWARE']), 'nginx') !== FALSE);
+  $apache_show_warning = ($view_path === 'icons' && strpos(drupal_strtolower($_SERVER['SERVER_SOFTWARE']), 'apache') !== FALSE);
   $apache_suppress_warning = variable_get('icon_api_apache_suppress_warning', FALSE);
   if ($apache_show_warning && !$apache_suppress_warning) {
     drupal_set_message(t('<strong>WARNING:</strong> Apache installations are typically configured with a server level alias that redirects "/icons" to an internal directory on the server. It is highly recommended that this be removed from the configuration file for the view path to work properly. If this modification has been made to the server, you may surpress this messages in the global settings below. The only alternative is to change the view path in the global settings below. See: <a href="!link">!link</a>.', array(
