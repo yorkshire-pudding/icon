@@ -1,0 +1,18 @@
+<?php
+/**
+ * @file
+ * Install and uninstall code for Icon Tabs.
+ */
+
+/**
+ * Implements hook_uninstall().
+ *
+ * Removes variables created by this module.
+ */
+function icon_tabs_uninstall() {
+  variable_del('icon_tabs_hide_default');
+  variable_del('icon_tabs_fred_tabs_theme');
+  variable_del('icon_tabs_fred_tabs_vertical');
+  variable_del('icon_tabs_fred_tabs_vertical_width');
+  variable_del('icon_tabs_classes');
+}

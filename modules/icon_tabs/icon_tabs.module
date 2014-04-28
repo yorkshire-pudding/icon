@@ -1,0 +1,277 @@
+<?php
+/**
+ * @file
+ * Adds the 'Icon Tabs' styled block of the Local Tasks menu.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function icon_tabs_help($path, $arg) {
+  if ($path == 'admin/help#icon_tabs') {
+    $output = file_get_contents(drupal_get_path('module', 'icon_tabs') . '/README.txt');
+    if (module_exists('markdown')) {
+      $output = module_invoke('markdown', 'filter', 'process', 0, -1, $output);
+      $output = filter_xss_admin($output);
+    }
+    else {
+      $output = '<pre>' . check_plain($output) . '</pre>';
+    }
+    return $output;
+  }
+}
+
+/**
+ * Implements hook_menu().
+ *
+ * Add icon Tabs settings page to the menu.
+ */
+function icon_tabs_menu() {
+  $items = array();
+  $items['admin/config/user-interface/icon-tabs'] = array(
+    'title' => 'Icon tabs',
+    'description' => 'Settings for the Icon tabs module',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('icon_tabs_admin'),
+    'access arguments' => array('administer icon tabs'),
+    'file' => 'icon_tabs.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ *
+ * Add a permission for editing icon tab settings.
+ */
+function icon_tabs_permission() {
+  return array(
+    'administer icon tabs' => array(
+      'title' => t('Administer Icon Tabs'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_block_info().
+ *
+ * Declare the icon Tabs block.
+ */
+function icon_tabs_block_info() {
+  $blocks['icon-tabs'] = array(
+    'info' => t('Icon Tabs'),
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function icon_tabs_block_view($delta = '') {
+  $static = &drupal_static('icon_tabs_rendered');
+
+  // Don't display block on admin pages.
+  if (path_is_admin(current_path())) {
+    return FALSE;
+  }
+
+  $block = array();
+  switch ($delta) {
+    case 'icon-tabs':
+      $block['subject'] = '';
+      $block['content'] = icon_tabs_block_contents();
+      break;
+  }
+
+  // Since the block was rendered, set block_rendered to TRUE (this will inform
+  // icon_tabs_process_menu_local_tasks() that it can hide the actual
+  // MENU_LOCAL_TASKS tasks):
+  $static['block_rendered'] = TRUE;
+
+  return $block;
+}
+
+/**
+ * Implements template_preprocess_block().
+ */
+function icon_tabs_preprocess_block(&$variables) {
+  if ($variables['block']->delta == 'icon-tabs' && $variables['block']->module == 'icon_tabs') {
+    // Add a reliable class the the block.
+    $variables['classes_array'][] = drupal_html_class('icon-tabs-block');
+  }
+}
+
+/**
+ * Custom function returns the Local Tasks.
+ */
+function icon_tabs_block_contents() {
+  // Rendered here because the variables are unset in
+  // icon_tabs_process_menu_local_tasks() once this block is rendered.
+  $tabs = array(
+    '#theme' => 'menu_local_tasks',
+    '#primary' => menu_primary_local_tasks(),
+    '#secondary' => menu_secondary_local_tasks(),
+  );
+
+  return drupal_render($tabs);
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for theme_menu_local_task().
+ *
+ * Add icons to tabs and aknowledge any new tabs.
+ */
+function icon_tabs_preprocess_menu_local_task(&$variables) {
+  // Get the current list of tabs that we know about.
+  $tab_icons = variable_get('icon_tabs_classes', array());
+
+  // The link for the tab.
+  $link = $variables['element']['#link'];
+
+  // Href is used to generate class for better translation support.
+  $class[] = 'menu-item-' . _icon_tabs_generate_class_name($link['href']);
+
+  // Add the class the the link.
+  $variables['element']['#link']['localized_options']['attributes']['class'] = $class;
+
+  if (!path_is_admin(current_path()) && isset($tab_icons[$class[0]])) {
+    $tab = $tab_icons[$class[0]];
+    if (!empty($tab['icon']['icon']) && !empty($tab['icon']['bundle'])) {
+      if ($icon = theme('icon', array('bundle' => $tab['icon']['bundle'], 'icon' => $tab['icon']['icon']))) {
+        $variables['element']['#link']['title'] = $icon . $variables['element']['#link']['title'];
+        $variables['element']['#link']['localized_options']['html'] = TRUE;
+
+        $variables['element']['#link']['localized_options']['attributes']['class'][] = 'menu-item-has-icon';
+      }
+    }
+  }
+
+  // If we arent on an admin page and there isn't an entry for our tab yet go
+  // ahead and make one.
+  if (!path_is_admin(current_path()) && !isset($tab_icons[$class[0]])) {
+    // Add entry and use the class as the key.
+    $tab_icons[$class[0]] = array(
+      'title' => $link['title'],
+      'icon' => array(),
+    );
+  }
+  // If there have been any changes update the variable.
+  if ($tab_icons != variable_get('icon_tabs_classes', array())) {
+    variable_set('icon_tabs_classes', $tab_icons);
+  }
+}
+
+/**
+ * Implements hook_process_HOOK() for menu_local_tasks().
+ *
+ * Unsets MENU_LOCAL_TASKS prior to display, if our block has been displayed and
+ * we're not currently in the process of rendering the plain MENU_LOCAL_TASKS.
+ */
+function icon_tabs_process_menu_local_tasks(&$variables) {
+  // Don't add styles to admin pages.
+  if (!path_is_admin(current_path())) {
+    // Only add the css if there are any tabs.
+    if (menu_primary_local_tasks() || menu_secondary_local_tasks()) {
+      // If the Fred Tabs theme is enabled.
+      if (variable_get('icon_tabs_fred_tabs_theme', 0)) {
+        drupal_add_css(drupal_get_path('module', 'icon_tabs') . '/css/fred-tabs-theme.css');
+
+        // If Environment Indicator is enabled.
+        if (module_exists('environment_indicator')
+            && variable_get('icon_tabs_fred_tabs_environment_indicator', FALSE)) {
+
+          $environment_info = environment_indicator_get_active();
+          if ($environment_info && environment_indicator_check_access($environment_info)) {
+            $color      = $environment_info['color'];
+            $text_color = $environment_info['text_color'];
+
+            if ($color && $text_color) {
+              drupal_add_css("ul.tabs li:not(.active) {
+                background-color: $color !important;
+                color: $text_color !important;
+              }", 'inline');
+            }
+          }
+        }
+      }
+
+      // If the vertical stacking is enabled.
+      if (variable_get('icon_tabs_fred_tabs_vertical', 0)) {
+        // Get the vertical width.
+        $vertical_width = variable_get('icon_tabs_fred_tabs_vertical_width', 1260);
+        $css = '.icon-tabs-block ul.tabs {
+            position: absolute;
+            right: 100%;
+            margin-right: 20px;
+            top: 0;
+            z-index: 97;
+            text-align: right;
+          }
+          .icon-tabs-block ul.tabs li {
+            margin: 0 0 10px 0 !important;
+            float: right;
+            clear: both;
+            max-width: 32px;
+            max-height: 33px;
+          }
+          .icon-tabs-block ul.tabs li:hover {
+            max-width: 135px;
+            max-height: 96px;
+          }
+          .icon-tabs-block ul.tabs li a {
+            float: right;
+          }';
+
+        // If the value is greater than zero, put it in a media query.
+        $media = ($vertical_width > 0) ? '(min-width: ' . $vertical_width . 'px)' : 'screen';
+        // Add the vertical styles to the page.
+        drupal_add_css($css, array(
+          'group' => CSS_THEME,
+          'type' => 'inline',
+          'media' => $media,
+          'preprocess' => FALSE,
+          'weight' => '9999',
+        ));
+      }
+    }
+  }
+
+  $static = &drupal_static('icon_tabs_rendered');
+
+  // Get the icon_tabs_hide_default variable.
+  $hide_default = variable_get('icon_tabs_hide_default', 1);
+
+  // If the Icons tabs block has been rendered.
+  $block_already_rendered = isset($static['block_rendered']) && $static['block_rendered'];
+
+  if ($block_already_rendered && $hide_default) {
+    // Prevents the Local Tasks from being rendered if our block already has.
+    $variables = array();
+  }
+}
+
+/**
+ * Custom function used to generate css class from string.
+ */
+function _icon_tabs_generate_class_name($text) {
+  // Remove numbers (entity ids) from class.
+  $text = preg_replace('/[^\\/\-a-z\s]/i', '', $text);
+  // Convert text to a nice class name.
+  $text = drupal_html_class($text);
+  // Remove trailing dash if there is one.
+  $class = rtrim($text, "-");
+
+  return $class;
+}
+
+/**
+ * Helper function to return the default icon menu values.
+ */
+function icon_tabs_defaults() {
+  return array(
+    'bundle' => '',
+    'icon' => '',
+  );
+}
