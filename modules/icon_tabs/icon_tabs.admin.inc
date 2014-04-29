@@ -41,7 +41,7 @@ function icon_tabs_admin() {
     '#type' => 'checkbox',
     '#title' => t("Vertically stack tabs"),
     '#default_value' => variable_get('icon_tabs_fred_tabs_vertical', 0),
-    '#description' => t("Vertically stack tabs for larger screen widths. This will not be ideal for all themes. For best results ensure the block is in a region that spans the full width of the content area or is at least always on the left side. <strong>NOTE: The <a href='/admin/structure/block/manage/icon_tabs/icon-tabs/configure'>Icon Tabs block</a> must be used for this setting.</strong>"),
+    '#description' => t("Vertically stack tabs for larger screen widths. This will not be ideal for all themes. For best results ensure the block is in a region that spans the full width of the content area or is at least always on the left side. A default icon should also be selected. <strong>NOTE: The <a href='/admin/structure/block/manage/icon_tabs/icon-tabs/configure'>Icon Tabs block</a> must be used for this setting.</strong>"),
     '#states' => array(
       'invisible' => array(
         ':input[name="icon_tabs_fred_tabs_theme"]' => array('checked' => FALSE),
@@ -81,6 +81,17 @@ function icon_tabs_admin() {
     '#title' => t('Icons'),
     '#description' => t("<strong>NOTE: Tabs must have been generated at least once to show up on this list.</strong>"),
     '#weight' => 3,
+  );
+
+  // Get the default values.
+  $default_icon = variable_get('icon_tabs_default_icon', icon_tabs_defaults());
+  $defaults = array_merge(icon_tabs_defaults(), !empty($default_icon) ? $default_icon : array());
+  $form['icons']['icon_tabs_default_icon'] = array(
+    '#type' => 'icon_selector',
+    '#title' => t("Default icon"),
+    '#default_bundle' => $defaults['bundle'],
+    '#default_icon' => $defaults['icon'],
+    '#description' => t("The default icon used for tabs. Unset this to not display any icon by default."),
   );
 
   // Get the current list of tabs that we know about.
@@ -127,10 +138,8 @@ function icon_tabs_admin() {
         $form['icons'][$category] = array(
           '#type' => 'fieldset',
           '#title' => $tab['title'],
-          '#weight' => ($key == 'default') ? -1 : 1,
-          '#collapsible' => ($key == 'default') ? FALSE : TRUE,
-          '#collapsed' => ($key == 'default') ? FALSE : TRUE,
-          '#description' => ($key == 'default') ? t('The default icon used for tabs. Unset this to not display any icon by default.') : FALSE,
+          '#collapsible' => TRUE,
+          '#collapsed' => TRUE,
         );
       }
       $form['icons'][$category][$key] = array(
@@ -183,5 +192,7 @@ function _icon_tabs_admin_submit($form, &$form_state) {
   if ($tab_icons != variable_get('icon_tabs_classes', array())) {
     variable_set('icon_tabs_classes', $tab_icons);
   }
-
+  if ($form_state['values']['icon_tabs_default_icon'] != variable_get('icon_tabs_default_icon', icon_tabs_defaults())) {
+    variable_set('icon_tabs_default_icon', $form_state['values']['icon_tabs_default_icon']);
+  }
 }

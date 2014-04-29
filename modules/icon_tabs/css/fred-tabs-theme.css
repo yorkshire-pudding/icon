@@ -41,7 +41,6 @@ body ul.tabs li {
   border: none;
   line-height: 17px;
   text-decoration: none;
-  text-transform: uppercase;
   font-weight: bold;
   background: #666;
   color: white;
@@ -63,6 +62,7 @@ body ul.tabs li:active {
   color: white;
 }
 body ul.tabs li a {
+  display: block;
   padding: 0 7px 0 0 !important;
   position: relative !important;
   top: auto !important;

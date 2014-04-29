@@ -99,7 +99,9 @@ function icon_tabs_block_view($delta = '') {
 function icon_tabs_preprocess_block(&$variables) {
   if ($variables['block']->delta == 'icon-tabs' && $variables['block']->module == 'icon_tabs') {
     // Add a reliable class the the block.
-    $variables['classes_array'][] = drupal_html_class('icon-tabs-block');
+    $variables['classes_array'][] = 'icon-tabs-block';
+    // Add tabs class for better theme support.
+    $variables['classes_array'][] = 'tabs';
   }
 }
 
@@ -136,14 +138,28 @@ function icon_tabs_preprocess_menu_local_task(&$variables) {
   // Add the class the the link.
   $variables['element']['#link']['localized_options']['attributes']['class'] = $class;
 
-  if (!path_is_admin(current_path()) && isset($tab_icons[$class[0]])) {
-    $tab = $tab_icons[$class[0]];
-    if (!empty($tab['icon']['icon']) && !empty($tab['icon']['bundle'])) {
-      if ($icon = theme('icon', array('bundle' => $tab['icon']['bundle'], 'icon' => $tab['icon']['icon']))) {
-        $variables['element']['#link']['title'] = $icon . $variables['element']['#link']['title'];
-        $variables['element']['#link']['localized_options']['html'] = TRUE;
+  if (!path_is_admin(current_path())) {
+    if (isset($tab_icons[$class[0]])) {
+      $tab = $tab_icons[$class[0]];
+      if (!empty($tab['icon']['icon']) && !empty($tab['icon']['bundle'])) {
+        if ($icon = theme('icon', array('bundle' => $tab['icon']['bundle'], 'icon' => $tab['icon']['icon']))) {
+          $variables['element']['#link']['title'] = $icon . $variables['element']['#link']['title'];
+          $variables['element']['#link']['localized_options']['html'] = TRUE;
 
-        $variables['element']['#link']['localized_options']['attributes']['class'][] = 'menu-item-has-icon';
+          $variables['element']['#link']['localized_options']['attributes']['class'][] = 'menu-item-has-icon';
+        }
+      }
+      else {
+        $default_icon = variable_get('icon_tabs_default_icon', icon_tabs_defaults());
+
+        if (!empty($default_icon['icon']) && !empty($default_icon['bundle'])) {
+          if ($icon = theme('icon', array('bundle' => $default_icon['bundle'], 'icon' => $default_icon['icon']))) {
+            $variables['element']['#link']['title'] = $icon . $variables['element']['#link']['title'];
+            $variables['element']['#link']['localized_options']['html'] = TRUE;
+
+            $variables['element']['#link']['localized_options']['attributes']['class'][] = 'menu-item-has-icon';
+          }
+        }
       }
     }
   }
@@ -220,8 +236,10 @@ function icon_tabs_process_menu_local_tasks(&$variables) {
             max-width: 135px;
             max-height: 96px;
           }
+          .icon-tabs-block ul.tabs li a.menu-item-has-icon,
           .icon-tabs-block ul.tabs li a {
             float: right;
+            padding: 0 27px 0 0 !important;
           }';
 
         // If the value is greater than zero, put it in a media query.
@@ -238,8 +256,8 @@ function icon_tabs_process_menu_local_tasks(&$variables) {
     }
   }
 
+  // Check to see if the Icon Tabs block has already been rendered.
   $static = &drupal_static('icon_tabs_rendered');
-
   // Get the icon_tabs_hide_default variable.
   $hide_default = variable_get('icon_tabs_hide_default', 1);
 
