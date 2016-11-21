@@ -130,12 +130,21 @@ function icon_field_field_formatter_view($entity_type, $entity, $field, $instanc
         $options = array_merge($uri['options'], $options);
       }
 
-      $elements[$delta] = array(
-        '#theme' => 'link',
-        '#path' => $uri['path'],
-        '#text' => theme('icon', array('bundle' => $item['bundle'], 'icon' => $item['icon'])),
-        '#options' => $options,
-      );
+      // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $elements[$delta] = array(
+//         '#theme' => 'link',
+//         '#path' => $uri['path'],
+//         '#text' => theme('icon', array('bundle' => $item['bundle'], 'icon' => $item['icon'])),
+//         '#options' => $options,
+//       );
+
     }
     else {
       $elements[$delta] = array(

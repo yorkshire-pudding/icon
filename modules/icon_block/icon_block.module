@@ -5,6 +5,8 @@
  * Provides icon integration with blocks.
  */
 
+use Drupal\Core\Form\FormStateInterface;
+
 /**
  * Implements hook_icon_permission().
  */
@@ -37,58 +39,72 @@ function icon_block_preprocess_block(&$variables) {
   $block = &$variables['block'];
   $settings = array_merge(icon_block_defaults(), isset($block->icon) ? (array) unserialize($block->icon) : array());
   if (!empty($settings['bundle']) && !empty($settings['icon'])) {
-    if ($icon = theme('icon', array('bundle' => $settings['bundle'], 'icon' => $settings['icon']))) {
-      $variables['classes_array'][] = 'has-icon';
-      switch ($settings['position']) {
-        case 'title_before':
-          $variables['title_prefix'][] = array('#markup' => $icon);
-          break;
+    // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// if ($icon = theme('icon', array('bundle' => $settings['bundle'], 'icon' => $settings['icon']))) {
+//       $variables['classes_array'][] = 'has-icon';
+//       switch ($settings['position']) {
+//         case 'title_before':
+//           $variables['title_prefix'][] = array('#markup' => $icon);
+//           break;
+// 
+//         case 'title_after':
+//           $variables['title_suffix'][] = array('#markup' => $icon);
+//           break;
+// 
+//         case 'title_inside_before':
+//           $block->subject = $icon . $block->subject;
+//           break;
+// 
+//         case 'title_inside_after':
+//           $block->subject .= $icon;
+//           break;
+// 
+//         case 'content_before':
+//           $variables['content'] = $icon . $variables['content'];
+//           break;
+// 
+//         case 'content_after':
+//           $variables['content'] .= $icon;
+//           break;
+//       }
+//     }
 
-        case 'title_after':
-          $variables['title_suffix'][] = array('#markup' => $icon);
-          break;
-
-        case 'title_inside_before':
-          $block->subject = $icon . $block->subject;
-          break;
-
-        case 'title_inside_after':
-          $block->subject .= $icon;
-          break;
-
-        case 'content_before':
-          $variables['content'] = $icon . $variables['content'];
-          break;
-
-        case 'content_after':
-          $variables['content'] .= $icon;
-          break;
-      }
-    }
   }
 }
 
 /**
  * Implements hook_form_alter().
  */
-function icon_block_form_alter(&$form, &$form_state, $form_id) {
-  if ($form_id == 'block_admin_configure' || $form_id == 'block_add_block_form') {
-    $access = user_access('administer icons') || user_access('administer block icons');
-    $block = block_load($form['module']['#value'], $form['delta']['#value']);
-    $settings = array_merge(icon_block_defaults(), isset($block->icon) ? (array) unserialize($block->icon) : array());
-    // Add an icon selector input element.
+function icon_block_form_alter(&$form, FormStateInterface &$form_state, $form_id) {
+  if ($form_id == 'block_admin_configure' || $form_id == 'block_add_block_form' ||  $form_id == 'block_content_basic_form' || $form_id == 'block_form') {
+    $access = \Drupal::currentUser()->hasPermission('administer icons') || \Drupal::currentUser()->hasPermission('administer block icons');
+    $block = $form_state->getFormObject()->getEntity();
+    $settings = $form_state->getValue('settings');
+    $settings = icon_block_defaults();
+    if($block->isNew()) {
+
+    }
     $form['settings']['icon_selector'] = array(
       '#access' => $access,
       '#type' => 'icon_selector',
       '#default_bundle' => $settings['bundle'],
       '#default_icon' => $settings['icon'],
     );
+    //$settings = array_merge(icon_block_defaults(), isset($block->icon) ? (array) unserialize($block->icon) : array());
+    // Add an icon selector input element.
     // Additional configuration on where to place the icon in the block.
     $icon_state = array('invisible' => array(':input[name="icon_selector[icon]"]' => array('value' => '')));
     $form['settings']['icon_selector']['position'] = array(
       '#access' => $access,
       '#type' => 'select',
-      '#title' => t('Position'),
+      '#title' => t('Icon Position'),
       '#options' => array(
         'title_before' => t('Before title'),
         'title_after' => t('After title'),

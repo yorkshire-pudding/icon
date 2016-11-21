@@ -48,14 +48,14 @@ function icon_bundle_overview_form($form, &$form_state) {
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
   );
-  $view_path = variable_get('icon_api_view_path_alias', 'icons');
+  $view_path = \Drupal::config('icon.settings')->get('icon_api_view_path_alias');
   $form['global']['icon_api_view_path_alias'] = array(
     '#type' => 'textfield',
     '#title' => t('View Path'),
     '#field_prefix' => base_path(),
     '#input_group' => TRUE,
-    '#description' => t('If provided, users with the "view icons" permission will be able to view enabled icons at this URL (defaults to: <code>!path</code>. Change this url if it conflicts with other paths on your site. Leave empty to disable.', array(
-      '!path' => base_path() . 'icons',
+    '#description' => t('If provided, users with the "view icons" permission will be able to view enabled icons at this URL (defaults to: <code>:path</code>. Change this url if it conflicts with other paths on your site. Leave empty to disable.', array(
+      ':path' => base_path() . 'icons',
     )),
     '#default_value' => $view_path,
   );
@@ -63,8 +63,8 @@ function icon_bundle_overview_form($form, &$form_state) {
   $apache_show_warning = ($view_path === 'icons' && strpos(drupal_strtolower($_SERVER['SERVER_SOFTWARE']), 'apache') !== FALSE);
   $apache_suppress_warning = variable_get('icon_api_apache_suppress_warning', FALSE);
   if ($apache_show_warning && !$apache_suppress_warning) {
-    drupal_set_message(t('<strong>WARNING:</strong> Apache installations are typically configured with a server level alias that redirects "/icons" to an internal directory on the server. It is highly recommended that this be removed from the configuration file for the view path to work properly. If this modification has been made to the server, you may surpress this messages in the global settings below. The only alternative is to change the view path in the global settings below. See: <a href="!link">!link</a>.', array(
-      '!link' => 'https://drupal.org/node/2198427',
+    drupal_set_message(t('<strong>WARNING:</strong> Apache installations are typically configured with a server level alias that redirects "/icons" to an internal directory on the server. It is highly recommended that this be removed from the configuration file for the view path to work properly. If this modification has been made to the server, you may surpress this messages in the global settings below. The only alternative is to change the view path in the global settings below. See: <a href=":link">:link</a>.', array(
+      ':link' => 'https://drupal.org/node/2198427',
     )), 'warning', FALSE);
   }
   // Provide toggle for suppressing warning message.

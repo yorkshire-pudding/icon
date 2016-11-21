@@ -1,9 +1,14 @@
 <?php
+
 /**
  * @file
  * icon.module
  * Provides icon integration with menu items.
  */
+
+use Drupal\Core\Cache\Cache;
+use Drupal\Core\Extension\Extension;
+use Drupal\Core\Extension\ExtensionDiscovery;
 
 define('ICON_ADMIN_PATH', 'admin/config/media/icon');
 
@@ -221,7 +226,7 @@ function icon_permission() {
 function &icon_render_hooks($hook = NULL, $reset = FALSE) {
   $hooks = & drupal_static(__FUNCTION__);
   if (!isset($hooks) || $reset) {
-    if (!$reset && ($cache = cache_get('icon_render_hooks')) && !empty($cache->data)) {
+    if (!$reset && ($cache = \Drupal::cache()->get('icon_render_hooks')) && !empty($cache->data)) {
       $hooks = $cache->data;
     }
     else {
@@ -248,9 +253,9 @@ function &icon_render_hooks($hook = NULL, $reset = FALSE) {
         }
       }
       // Allow extensions to alter render hook information.
-      drupal_alter('icon_render_hooks', $hooks);
+      \Drupal::moduleHandler()->alter('icon_render_hooks', $hooks);
       // Cache the render hook information.
-      cache_set('icon_render_hooks', $hooks);
+      \Drupal::cache()->set('icon_render_hooks', $hooks);
     }
   }
   if (isset($hook)) {
@@ -303,7 +308,7 @@ function icon_bundle_defaults(&$bundle = array(), $name = '') {
 function icon_bundles($name = NULL, $reset = FALSE) {
   $bundles = & drupal_static(__FUNCTION__);
   if (!isset($bundles) || $reset) {
-    if (!$reset && ($cache = cache_get('icon_bundles')) && !empty($cache->data)) {
+    if (!$reset && ($cache = \Drupal::cache()->get('icon_bundles')) && !empty($cache->data)) {
       $bundles = $cache->data;
     }
     else {
@@ -348,16 +353,18 @@ function icon_bundles($name = NULL, $reset = FALSE) {
           }
         }
         $bundle['database'] = TRUE;
+
         $bundle['status'] = (int) $database_bundle->status;
         if (isset($bundles[$database_bundle->name])) {
           $bundle = array_merge($bundles[$database_bundle->name], $bundle);
         }
         $bundles[$database_bundle->name] = $bundle;
+
       }
       // Allow extensions to alter the bundles.
-      drupal_alter('icon_bundles', $bundles);
+      \Drupal::moduleHandler()->alter('icon_bundles', $bundles);
       // Cache the info.
-      cache_set('icon_bundles', $bundles);
+      \Drupal::cache()->set('icon_bundles', $bundles);
     }
   }
   if (isset($name)) {
@@ -429,11 +436,11 @@ function icon_bundle_delete(array $bundle = array()) {
 function icon_bundle_disable(array $bundle = array()) {
   $bundle['status'] = 0;
   if (icon_bundle_save($bundle)) {
-    drupal_set_message(t('The icon bundle %bundle has been disabled.', array('%bundle' => $bundle['title'])));
+    drupal_set_message(t('The icon bundle %bundle has been disabled.', array('%bundle' => $bundle['name'])));
     icon_clear_all_caches();
     return TRUE;
   }
-  drupal_set_message(t('An error occurred while attemping to disable the icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
+  drupal_set_message(t('An error occurred while attemping to disable the icon bundle: %bundle.', array('%bundle' => $bundle['name'])), 'error');
   return FALSE;
 }
 
@@ -449,11 +456,11 @@ function icon_bundle_disable(array $bundle = array()) {
 function icon_bundle_enable(array $bundle = array()) {
   $bundle['status'] = 1;
   if (icon_bundle_save($bundle)) {
-    drupal_set_message(t('The icon bundle %bundle has been enabled.', array('%bundle' => $bundle['title'])));
+    drupal_set_message(t('The icon bundle %bundle has been enabled.', array('%bundle' => $bundle['name'])));
     icon_clear_all_caches();
     return TRUE;
   }
-  drupal_set_message(t('An error occurred while attemping to enable the icon bundle: %bundle.', array('%bundle' => $bundle['title'])), 'error');
+  drupal_set_message(t('An error occurred while attemping to enable the icon bundle: %bundle.', array('%bundle' => $bundle['name'])), 'error');
   return FALSE;
 }
 
@@ -508,7 +515,7 @@ function icon_bundle_save(array $bundle = array()) {
     return FALSE;
   }
   // Allow extensions to alter the bundle before it's saved.
-  drupal_alter('icon_bundle_save', $bundle);
+  \Drupal::moduleHandler()->alter('icon_bundle_save', $bundle);
   $primary_keys = array();
   $record = array(
     'name' => $bundle['name'],
@@ -534,9 +541,13 @@ function icon_bundle_save(array $bundle = array()) {
   if (!empty($diff)) {
     $record['bundle'] = $bundle;
   }
-  // Only write to the database if necessary.
+  // Only write to the database if the record exists and needs to be saved.
   if (isset($record['status']) || isset($record['bundle'])) {
-    if ($status = drupal_write_record('icon_bundle', $record, $primary_keys)) {
+    $status = \Drupal::database()->merge('icon_bundle')
+      ->key(array('name' => $record['name']))
+      ->fields(array('bundle' => $record['bundle'], 'status' => $record['status']))
+      ->execute();
+    if ($status) {
       icon_clear_all_caches();
       return $status;
     }
@@ -551,6 +562,9 @@ function icon_bundle_save(array $bundle = array()) {
  *   An associative array of provider information, passed by reference.
  * @param string $name
  *   The machine name of the provider.
+ *
+ * @return array|false
+ *   An associative array containing information about a provider
  */
 function icon_provider_defaults(&$provider = array(), $name = '') {
   $provider += array(
@@ -578,7 +592,7 @@ function icon_provider_defaults(&$provider = array(), $name = '') {
 function icon_providers($name = NULL, $reset = FALSE) {
   $providers = & drupal_static(__FUNCTION__);
   if (!isset($providers) || $reset) {
-    if (!$reset && ($cache = cache_get('icon_providers')) && !empty($cache->data)) {
+    if (!$reset && ($cache = \Drupal::cache()->get('icon_providers')) && !empty($cache->data)) {
       $providers = $cache->data;
     }
     else {
@@ -603,9 +617,9 @@ function icon_providers($name = NULL, $reset = FALSE) {
         }
       }
       // Allow extensions to alter the providers.
-      drupal_alter('icon_providers', $providers);
+      \Drupal::moduleHandler()->alter('icon_providers', $providers);
       // Cache the info.
-      cache_set('icon_providers', $providers);
+      \Drupal::cache()->set('icon_providers', $providers);
     }
   }
   if (!empty($name)) {
@@ -664,12 +678,12 @@ function icon_providers_support_import($name = NULL) {
 function icon_provider_load($name) {
   $loaded = & drupal_static(__FUNCTION__, array());
   if (empty($loaded[$name])) {
-    if (($cache = cache_get($name, 'cache_icon_providers')) && !empty($cache->data)) {
+    if (($cache = \Drupal::cache('cache_icon_providers')->get($name)) && !empty($cache->data)) {
       $loaded[$name] = $cache->data;
     }
     else {
       $provider = icon_providers($name);
-      cache_set($name, $provider, 'cache_icon_providers');
+      \Drupal::cache('cache_icon_providers')->set($name, $provider);
       $loaded[$name] = $provider;
     }
   }

@@ -5,6 +5,8 @@
  * Provides useful functions and common tasks.
  */
 
+use Drupal\Core\Extension\ExtensionDiscovery;
+
 /**
  * Extracts an uploaded archive file to the specified directory.
  *
@@ -168,7 +170,8 @@ function icon_extension_hook($type, $extension, $hook) {
   // Ensure the extension is loaded.
   if (!isset($hooks[$type][$extension])) {
     if ('module' === $type) {
-      drupal_load($type, $extension);
+      //@TODO: replace replace drupal_load()
+      //drupal_load($type, $extension);
     }
     // Themes cannot be loaded via drupal_load(), instead the theme's include
     // file must be loaded.
@@ -178,7 +181,7 @@ function icon_extension_hook($type, $extension, $hook) {
   }
   // Check to see if the hook is implemented.
   if (!isset($hooks[$type][$extension][$hook])) {
-    $hooks[$type][$extension][$hook] = ('module' === $type ? module_hook($extension, $hook) : function_exists($extension . '_' . $hook));
+    $hooks[$type][$extension][$hook] = ('module' === $type ? \Drupal::moduleHandler()->implementsHook($extension, $hook) : function_exists($extension . '_' . $hook));
   }
   return $hooks[$type][$extension][$hook];
 }
@@ -197,7 +200,7 @@ function icon_extension_implements($hook) {
   if (!isset($implements[$hook])) {
     $implements[$hook] = array();
     // Gather the modules that implement the hook.
-    foreach (module_implements($hook) as $module) {
+    foreach (\Drupal::moduleHandler()->getImplementations($hook) as $module) {
       $implements[$hook][$module] = 'module';
     }
     // Due to how this module caches data, using the global $base_theme_info
@@ -267,15 +270,15 @@ function icon_enabled_themes() {
   $themes = &drupal_static(__FUNCTION__);
   if (!isset($themes)) {
     $themes = array();
-    foreach (list_themes() as $theme) {
-      if (!$theme->status || in_array($theme->name, $themes)) {
+    foreach (\Drupal::service('theme_handler')->listInfo() as $theme) {
+      if (!$theme->status || in_array($theme->getName(), $themes)) {
         continue;
       }
-      $themes[] = $theme->name;
+      $themes[] = $theme->getName();
       // Merge in the base themes if this is a sub-theme.
-      if (isset($theme->base_themes)) {
+      if (isset($theme->sub_themes)) {
         // Only add the theme if it's not already in the list.
-        foreach (array_keys($theme->base_themes) as $name) {
+        foreach (array_keys($theme->sub_themes) as $name) {
           if (!in_array($name, $themes)) {
             $themes[] = $name;
           }
@@ -333,12 +336,12 @@ function icon_file_move_recursive($source, $destination = NULL, $rename = FALSE,
       }
     }
     $dir->close();
-    if (!file_unmanaged_delete_recursive(drupal_realpath($source))) {
+    if (!file_unmanaged_delete_recursive(\Drupal::service("file_system")->realpath($source))) {
       return FALSE;
     }
     return $destination;
   }
-  elseif (is_file(drupal_realpath($source))) {
+  elseif (is_file(\Drupal::service("file_system")->realpath($source))) {
     return file_unmanaged_copy($source, $destination, $replace);
   }
   return FALSE;
@@ -359,7 +362,18 @@ function icon_find_theme_include($theme) {
   if (!isset($themes[$theme])) {
     $themes[$theme] = FALSE;
     if (!isset($includes)) {
-      $includes = array_keys(drupal_system_listing('/icon.inc|icons.inc$/', 'themes', 'uri', 0));
+      $includes = array();
+      $listing = new ExtensionDiscovery(\Drupal::root());
+      $available_themes = $listing->scan('themes');
+      foreach ($listing->scan('themes') as $theme) {
+        if (file_exists($filepath = $theme->getPath() . '/icons.inc')) {
+          $includes[$theme->getName()] = $filepath;
+        }
+        else if(file_exists($filepath = $theme->getPath() . '/icon.inc')) {
+          $includes[$theme->getName()] = $filepath;
+        }
+      }
+      //$includes = array_keys(drupal_system_listing('/icon.inc|icons.inc$/', 'themes', 'uri', 0));
     }
     foreach ($includes as $uri) {
       $theme_path = drupal_get_path('theme', $theme);

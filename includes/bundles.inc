@@ -24,7 +24,7 @@ function icon_icon_bundles() {
     'render' => 'image',
     'path' => drupal_get_path('module', 'icon') . '/bundles/lullacons',
     'provider' => 'lullabot',
-    'title' => t('Lullacons: Pack 1'),
+    'title' => 'Lullacons: Pack 1',
     'icons' => array(
       'alert' => 'alert',
       'arrow-double-down-green' => 'arrow-double-down-green',

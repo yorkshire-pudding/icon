@@ -40,7 +40,16 @@ function _icon_filter($text, $filter, $format, $langcode, $cache, $cache_id) {
   if (preg_match_all(ICON_FILTER_REGEX, $text, $matches, PREG_SET_ORDER)) {
     foreach ($matches as $match) {
       if (!isset($icons[$match[0]])) {
-        $icons[$match[0]] = theme('icon', array('bundle' => $match[1], 'icon' => $match[2]));
+        // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $icons[$match[0]] = theme('icon', array('bundle' => $match[1], 'icon' => $match[2]));
+
       }
     }
   }

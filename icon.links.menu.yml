@@ -1,0 +1,5 @@
+icon.admin:
+  title: Icons
+  description: 'Overview of all available icons.'
+  parent: system.admin_config_media
+  route_name: icon.overview

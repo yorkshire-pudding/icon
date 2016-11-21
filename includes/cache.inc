@@ -5,6 +5,20 @@
  * Provides hooks and functions for cache related tasks.
  */
 
+use Drupal\Core\Cache\Cache;
+use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Core\Database\Query\AlterableInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Render\Element;
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\views\Plugin\Derivative\ViewsLocalTask;
+use Drupal\Core\Template\AttributeArray;
+use Drupal\views\ViewExecutable;
+use Drupal\Component\Plugin\Exception\PluginException;
+use Drupal\views\Entity\View;
+use Drupal\views\Views;
+use Drupal\field\FieldConfigInterface;
+
 /**
  * Implements hook_flush_caches().
  */
@@ -17,7 +31,8 @@ function icon_flush_caches() {
  * Clears all caches used by the icon module.
  */
 function icon_clear_all_caches() {
-  cache_clear_all('icon_', 'cache', TRUE);
+  \Drupal::cache()->deleteAll('icon_');
+
   icon_reset_static_cache();
   // Rebuild icon data.
   icon_render_hooks();

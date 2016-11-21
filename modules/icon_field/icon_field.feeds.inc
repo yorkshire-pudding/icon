@@ -74,7 +74,7 @@ function icon_field_feeds_set_target($source, $entity, $target, $value, $mapping
 
   $iterator = 0;
   $field = isset($entity->$target) ? $entity->$target : array();
-  $language = isset($mapping['language']) ? $mapping['language'] : LANGUAGE_NONE;
+  $language = isset($mapping['language']) ? $mapping['language'] : \Drupal\Core\Language\Language::LANGCODE_NOT_SPECIFIED;
   foreach ($values as $value) {
     $field[$language][$iterator]['bundle'] = $mapping['icon_bundle'];
     $field[$language][$iterator]['icon'] = $value;
