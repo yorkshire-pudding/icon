@@ -72,6 +72,7 @@ function form_process_icon_selector($element) {
     '#options' => $options,
     '#default_value' => $default_value,
     '#empty_option' => '- No Icon -',
+    '#required' => !empty($element['#required']),
     '#weight' => -10,
   );
   if (isset($element['#default_value'])) {
