@@ -16,7 +16,8 @@ define('ICON_ADMIN_PATH', 'admin/config/media/icon');
 // file, however it's easier to manage in separate files.
 $includes = array('bundles','cache','element','render','theme','utilities');
 foreach ($includes as $include) {
-  require_once dirname(__FILE__) . "/includes/$include.inc";
+  require_once __DIR__ . "/includes/$include.inc";
+  // TODO - test this - replaced dirname(__FILE__) with __DIR__. Should be functionally equivalent and __DIR__ became available in PHP5.3
 }
 
 /**
@@ -67,25 +68,46 @@ function icon_library() {
 
 /**
  * Implements hook_menu().
+ *
+ * @FIXME - partially fixed.
+ * This implementation of hook_menu() cannot be automatically converted because
+ * it contains logic (i.e., branching statements, function calls, object
+ * instantiation, etc.) You will need to convert it manually. Sorry!
+ *
+ * For more information on how to convert hook_menu() to Drupal 8's new routing
+ * and linking systems, see https://api.drupal.org/api/drupal/core%21includes%21menu.inc/group/menu/8
  */
-function icon_menu() {
+/* function icon_menu() {
   $module_path = drupal_get_path('module', 'icon');
   $items = array();
-  $items[ICON_ADMIN_PATH] = array(
-    'title' => 'Icons',
-    'description' => 'Overview of all available icons.',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('icon_bundle_overview_form'),
-    'access arguments' => array('administer icons'),
-    'file' => 'admin.inc',
-    'file path' => $module_path . '/includes',
-  );
-  $items[ICON_ADMIN_PATH . '/overview'] = array(
-    'type' => MENU_DEFAULT_LOCAL_TASK,
-    'title' => 'Bundles',
-    'description' => 'Overview of all available icon bundles.',
-    'weight' => -10,
-  );
+
+//  Fixed = in icon.links.menu.yaml
+//  $items[ICON_ADMIN_PATH] = array(
+//    'title' => 'Icons',
+//    'description' => 'Overview of all available icons.',
+//    'page callback' => 'drupal_get_form',
+//    'page arguments' => array('icon_bundle_overview_form'),
+//    'access arguments' => array('administer icons'),
+//    'file' => 'admin.inc',
+//    'file path' => $module_path . '/includes',
+//  );
+//  $items[ICON_ADMIN_PATH . '/overview'] = array(
+//    'type' => MENU_DEFAULT_LOCAL_TASK,
+//    'title' => 'Bundles',
+//    'description' => 'Overview of all available icon bundles.',
+//    'weight' => -10,
+//  );
+
+
+/* @FIXME there are dynamically created local menu items, based on the icon sets found.
+ * The proposal is to use discoverable annotated handlers for the sets. Once a set
+ * has been found, it will need to be added to the menus. But that's not going to happen here.
+ *
+ * Note: IconSets used to be called Icon Bundles.
+ *
+ * Suggestion - we move these to a table on the overview page.
+ *
+ *
   $import_providers = icon_providers_support_import();
   if (!empty($import_providers)) {
     $items[ICON_ADMIN_PATH . '/import'] = array(
@@ -162,18 +184,27 @@ function icon_menu() {
 
   return $items;
 }
+ */
 
 /**
  * Implements hook_menu_alter().
  */
-function icon_menu_alter(&$items) {
+// @FIXME This was commented out during auto upgrade
+// This will need to be moved into the routing system etc.
+/*
+ *
+ function icon_menu_alter(&$items) {
   // Create a path alias for users with the "view icons" permission.
-  $view_path_alias = variable_get('icon_api_view_path_alias');
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/icon.settings.yml and config/schema/icon.schema.yml.
+$view_path_alias = \Drupal::config('icon.settings')->get('icon_api_view_path_alias');
 
   // If variable is not set and path is not taken, set it.
   if ($view_path_alias === NULL && empty($items['icons'])) {
     $view_path_alias = 'icons';
-    variable_set('icon_api_view_path_alias', $view_path_alias);
+    \Drupal::configFactory()->getEditable('icon.settings')->set('icon_api_view_path_alias', $view_path_alias)->save();
   }
 
   $tmp_path = ICON_ADMIN_PATH . '/tmp';
@@ -185,6 +216,7 @@ function icon_menu_alter(&$items) {
   unset($items[$tmp_path]);
   unset($items[$tmp_path . '/%icon_bundle']);
 }
+*/
 
 /**
  * Implements hook_permission().
@@ -192,7 +224,9 @@ function icon_menu_alter(&$items) {
  * Invokes hook_icon_permission() so sub-modules can be grouped together with
  * the Icon API module on the permissions table.
  */
-function icon_permission() {
+// @FIXME This code now moved to icon.permissions.yml but the recursive array aspect which groups things isn't. Hoping that permissions has a grouping mechanism
+// sorted yet.
+/* function icon_permission() {
   return array_merge_recursive(array(
     'administer icons' => array(
       'title' => t('Administer Icons'),
@@ -203,8 +237,9 @@ function icon_permission() {
       'title' => t('View Icons'),
       'description' => t('Grants selected roles permission to view all icons in enabled bundles.'),
     ),
-  ), module_invoke_all('icon_permission'));
+  ), \Drupal::moduleHandler()->invokeAll('icon_permission'));
 }
+*/
 
 /**
  * Returns information about icons render hooks.
@@ -359,8 +394,8 @@ function icon_bundles($name = NULL, $reset = FALSE) {
           $bundle = array_merge($bundles[$database_bundle->name], $bundle);
         }
         $bundles[$database_bundle->name] = $bundle;
-
       }
+
       // Allow extensions to alter the bundles.
       \Drupal::moduleHandler()->alter('icon_bundles', $bundles);
       // Cache the info.
@@ -470,7 +505,7 @@ function icon_bundle_enable(array $bundle = array()) {
  * Necessary for displaying a list of icons of a specific bundle.
  */
 function icon_bundle_get_theme($bundle, $global = FALSE) {
-  global $theme;
+  $theme = \Drupal::theme()->getActiveTheme()->getName();
   return !empty($bundle['theme']) && !$global ? $bundle['theme'] : $theme;
 }
 

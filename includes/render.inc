@@ -33,7 +33,7 @@ function icon_preprocess_icon_image(&$variables) {
     $bundle['settings']['extension'] = 'png';
   }
   // Sanitize and add icon class here.
-  $class = drupal_html_class($icon);
+  $class = \Drupal\Component\Utility\Html::getClass($icon);
   // Check to see if image starts with a alpha-numeric character. If it doesn't,
   // prepend it so it can be a proper CSS class.
   if (is_numeric($class[0])) {
@@ -53,12 +53,21 @@ function theme_icon_image($variables) {
   $icon = $variables['icon'];
   $image = $bundle['path'] . '/' . $icon . '.' . $bundle['settings']['extension'];
   if (file_exists($image) && ($info = image_get_info($image))) {
-    $output = theme('image', array(
-      'path' => $image,
-      'height' => $info['height'],
-      'width' => $info['width'],
-      'attributes' => $variables['attributes'],
-    ));
+    // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+//
+//
+// @see https://www.drupal.org/node/2195739
+// $output = theme('image', array(
+//       'path' => $image,
+//       'height' => $info['height'],
+//       'width' => $info['width'],
+//       'attributes' => $variables['attributes'],
+//     ));
+
   }
   return $output;
 }
@@ -78,7 +87,7 @@ function icon_preprocess_icon_sprite(&$variables) {
   }
   // Sanitize and add icon class here. Don't need to check for numeric because
   // these are already CSS class name based.
-  $variables['attributes']['class'][] = drupal_html_class($icon);
+  $variables['attributes']['class'][] = \Drupal\Component\Utility\Html::getClass($icon);
 }
 
 /**

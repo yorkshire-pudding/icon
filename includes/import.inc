@@ -75,7 +75,7 @@ function icon_provider_import_form_validate($form, &$form_state) {
   // against the archive file contents.
   $temp_dir = 'temporary://icon_api_' . md5(REQUEST_TIME);
   try {
-    $archiver = icon_archive_extract(drupal_realpath($file->uri), drupal_realpath($temp_dir));
+    $archiver = icon_archive_extract(\Drupal::service("file_system")->realpath($file->uri), \Drupal::service("file_system")->realpath($temp_dir));
   }
   catch (Exception $e) {
     form_set_error('file', $e->getMessage());
@@ -158,8 +158,8 @@ function icon_provider_import_form_submit($form, &$form_state) {
   icon_clear_all_caches();
   // Redirect to the bundle configuration if there are settings to configure.
   module_load_include('inc', 'icon', 'includes/admin');
-  $config_form = drupal_get_form('icon_bundle_configure_form', $bundle);
-  $settings = element_children($config_form['settings']);
+  $config_form = \Drupal::formBuilder()->getForm('icon_bundle_configure_form', $bundle);
+  $settings = \Drupal\Core\Render\Element::children($config_form['settings']);
   if (!empty($settings)) {
     $form_state['redirect'] = array(ICON_ADMIN_PATH . '/bundle/' . $bundle['name'] . '/configure');
   }

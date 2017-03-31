@@ -187,13 +187,17 @@ function hook_icon_bundle_save_alter(&$bundle) {
     // Set/override bundle settings.
     $bundle['settings']['custom_property'] = 'custom_value';
     // Change the enabled status of the bundle.
-    $bundle['status'] = variable_get('my_conditional_variable', 1);
+    // @FIXME
+// @FIXME
+// This looks like another module's variable. You'll need to rewrite this call
+// to ensure that it uses the correct configuration object.
+// $bundle['status'] = variable_get('my_conditional_variable', 1);
   }
 }
 
 /**
  * Allow extensions to be grouped with Icon API on the permissions table.
- * 
+ *
  * @return array
  *   Same type of array in hook_permission().
  *
@@ -273,6 +277,18 @@ function hook_icon_PROVIDER_import_validate($bundle) {
   return t('Invalid %provider bundle.', array('%provider' => $provider['title']));
 }
 
+/**
+ * Allows modules and themes to alter the list of permitted icon wrappers.
+ *
+ * @param array $options
+ *   An associative array of key/value pairs, where the wrapper HTML element is
+ *   the key and an human readable label is the value.
+ */
+function hook_icon_wrapper_options_alter(&$options) {
+  unset($options['div']);
+  $options['section'] = 'Section';
+}
+
 /*
  * @} End of "addtogroup hooks".
  */
@@ -306,12 +322,21 @@ function theme_icon_RENDER_HOOK($variables) {
   $icon = $variables['icon'];
   $image = $bundle['path'] . '/' . $icon . '.' . $bundle['settings']['extension'];
   if (file_exists($image) && ($info = image_get_info($image))) {
-    $output = theme('image', array(
-      'path' => $image,
-      'height' => $info['height'],
-      'width' => $info['width'],
-      'attributes' => $variables['attributes'],
-    ));
+    // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+//
+//
+// @see https://www.drupal.org/node/2195739
+// $output = theme('image', array(
+//       'path' => $image,
+//       'height' => $info['height'],
+//       'width' => $info['width'],
+//       'attributes' => $variables['attributes'],
+//     ));
+
   }
   return $output;
 }
@@ -331,7 +356,7 @@ function theme_icon_RENDER_HOOK($variables) {
  *
  * The icon_selector sets a tree state of TRUE, values will be inside
  * the element's value tree as "bundle" and "icon".
- * 
+ *
  * string #type
  *   The type of element to render, must be: icon_selector.
  * string #title
@@ -347,7 +372,7 @@ function theme_icon_RENDER_HOOK($variables) {
  *   Optional, machine name of the default bundle to initialize with.
  * string #default_icon
  *   Optional, machine name of the default icon to initialize with.
- *  
+ *
  * @see icon_block_form_alter()
  * @see icon_block_form_submit()
  */

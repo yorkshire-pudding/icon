@@ -7,6 +7,8 @@
 
 /**
  * Implements hook_theme().
+ *
+ * {@inheritdoc}
  */
 function icon_theme($existing, $type, $theme, $path) {
   $include_path = drupal_get_path('module', 'icon') . '/includes';
@@ -22,6 +24,10 @@ function icon_theme($existing, $type, $theme, $path) {
       'attributes' => array(),
       'icon' => NULL,
       'bundle' => NULL,
+      'token_data' => array(),
+      'wrapper' => '',
+      'wrapper_attributes' => array(),
+      'wrapper_class' => '',
     ),
   );
   // Add theming hooks for render hooks so they can control their own output.
@@ -39,6 +45,10 @@ function icon_theme($existing, $type, $theme, $path) {
           'attributes' => array(),
           'icon' => NULL,
           'bundle' => NULL,
+          'token_data' => array(),
+          'wrapper' => '',
+          'wrapper_attributes' => array(),
+          'wrapper_class' => '',
         ),
       );
     }
@@ -48,6 +58,8 @@ function icon_theme($existing, $type, $theme, $path) {
 
 /**
  * Implements hook_preprocess_icon().
+ *
+ * {@inheritdoc}
  */
 function template_preprocess_icon(&$variables) {
   $bundle = &$variables['bundle'];
@@ -59,6 +71,7 @@ function template_preprocess_icon(&$variables) {
     $bundle = icon_bundle_load($bundle);
   }
   $render_hooks = array_keys(icon_render_hooks());
+
   // Check to see if the bundle is valid, the icon is a part of the bundle and
   // the bundle has a valid render hook assigned.
   if (!$bundle || !$bundle['status'] || !(isset($bundle['icons'][$icon]) || in_array($icon, $bundle['icons']) || !in_array($bundle['render'], $render_hooks))) {
@@ -66,14 +79,34 @@ function template_preprocess_icon(&$variables) {
     $icon = FALSE;
     return;
   }
+
+  // Add classes to the icon wrapper_attributes variable.
+  $wrapper_attributes = &$variables['wrapper_attributes'];
+  if (!empty($variables['wrapper_class'])) {
+    $classes = array();
+    foreach (explode(' ', $variables['wrapper_class']) as $class) {
+      if ($class = trim(\Drupal::token()->replace($class, $variables['token_data'], array('clear' => TRUE)))) {
+        $classes[] = \Drupal\Component\Utility\Html::getClass($class);
+      }
+    }
+    if ($classes) {
+      if (!isset($wrapper_attributes['class'])) {
+        $wrapper_attributes['class'] = array();
+      }
+      $wrapper_attributes['class'] = array_unique(array_merge($wrapper_attributes['class'], $classes));
+    }
+  }
+
   // Add default icon class.
   $attributes = &$variables['attributes'];
   if (!isset($attributes['class'])) {
     $attributes['class'] = array();
   }
   $attributes['class'][] = 'icon';
+
   // Prevent screen readers from reading icons.
   $attributes['aria-hidden'] = 'true';
+
   // Load additional libraries, CSS, JavaScript an other custom
   // attached data associated with this bundle.
   icon_process_attached($bundle);
@@ -82,13 +115,40 @@ function template_preprocess_icon(&$variables) {
 /**
  * Theming responsibility is always passed to the bundle provider.
  *
+ * @param array $variables
+ *   The variables array.
+ *
  * WARNING: This theming hook should never be overridden.
  */
 function theme_icon($variables) {
+  $output = '';
   $bundle = $variables['bundle'];
   $icon = $variables['icon'];
   if (!empty($bundle) && !empty($icon)) {
-    return theme('icon_' . $bundle['render'], $variables);
+    // Render the icon.
+    // @todo This should be a render array, but converting the variables to
+    // render array properties is needed to do that and this is proxying them.
+    // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+//
+//
+// @see https://www.drupal.org/node/2195739
+// $output = theme('icon_' . $bundle['render'], $variables);
+
+
+    // Wrap icon, if necessary.
+    if (($wrapper = $variables['wrapper']) && in_array($wrapper, array_keys(icon_wrapper_options()))) {
+      $build = array(
+        '#theme' => 'html_tag__icon_wrapper',
+        '#tag' => $wrapper,
+        '#attributes' => $variables['wrapper_attributes'],
+        '#value' => $output,
+      );
+      $output = \Drupal::service("renderer")->render($build);
+    }
   }
-  return '';
+  return $output;
 }

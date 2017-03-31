@@ -26,7 +26,7 @@ function icon_bundle_overview_form($form, &$form_state) {
     ),
   );
   // Determine access to elements based on user permissions.
-  $admin = user_access('administer icons');
+  $admin = \Drupal::currentUser()->hasPermission('administer icons');
   $form['bundles'] = array(
     '#tree' => TRUE,
   );
@@ -60,8 +60,8 @@ function icon_bundle_overview_form($form, &$form_state) {
     '#default_value' => $view_path,
   );
   // Show warning message for servers running apache.
-  $apache_show_warning = ($view_path === 'icons' && strpos(drupal_strtolower($_SERVER['SERVER_SOFTWARE']), 'apache') !== FALSE);
-  $apache_suppress_warning = variable_get('icon_api_apache_suppress_warning', FALSE);
+  $apache_show_warning = ($view_path === 'icons' && strpos(\Drupal\Component\Utility\Unicode::strtolower($_SERVER['SERVER_SOFTWARE']), 'apache') !== FALSE);
+  $apache_suppress_warning = \Drupal::config('icon.settings')->get('icon_api_apache_suppress_warning');
   if ($apache_show_warning && !$apache_suppress_warning) {
     drupal_set_message(t('<strong>WARNING:</strong> Apache installations are typically configured with a server level alias that redirects "/icons" to an internal directory on the server. It is highly recommended that this be removed from the configuration file for the view path to work properly. If this modification has been made to the server, you may surpress this messages in the global settings below. The only alternative is to change the view path in the global settings below. See: <a href=":link">:link</a>.', array(
       ':link' => 'https://drupal.org/node/2198427',
@@ -90,15 +90,22 @@ function icon_bundle_overview_form($form, &$form_state) {
  */
 function icon_bundle_overview_form_validate($form, $form_state) {
   // Ensure only authorized users can submit the form.
-  if (!user_access('administer icons')) {
+  if (!\Drupal::currentUser()->hasPermission('administer icons')) {
     form_set_error('', t('You are not authorized to submit this form.'));
   }
   $view_path_alias = $form_state['values']['icon_api_view_path_alias'];
-  if ($form['global']['icon_api_view_path_alias']['#default_value'] !== $form_state['values']['icon_api_view_path_alias'] && menu_get_item($view_path_alias)) {
-    form_set_error('icon_api_view_path_alias', t('The view path alias provided, "%url", is already in use. Please enter a different path.', array(
-      '%url' => $view_path_alias,
-    )));
-  }
+  // @FIXME
+// menu_get_item() has been removed. To retrieve route information, use the
+// RouteMatch object, which you can retrieve by calling \Drupal::routeMatch().
+//
+//
+// @see https://www.drupal.org/node/2203305
+// if ($form['global']['icon_api_view_path_alias']['#default_value'] !== $form_state['values']['icon_api_view_path_alias'] && menu_get_item($view_path_alias)) {
+//     form_set_error('icon_api_view_path_alias', t('The view path alias provided, "%url", is already in use. Please enter a different path.', array(
+//       '%url' => $view_path_alias,
+//     )));
+//   }
+
 }
 
 /**
@@ -107,7 +114,7 @@ function icon_bundle_overview_form_validate($form, $form_state) {
 function icon_bundle_overview_form_submit($form, $form_state) {
   $view_path_alias = $form_state['values']['icon_api_view_path_alias'];
   if ($form['global']['icon_api_view_path_alias']['#default_value'] !== $view_path_alias) {
-    variable_set('icon_api_view_path_alias', $view_path_alias);
+    \Drupal::configFactory()->getEditable('icon.settings')->set('icon_api_view_path_alias', $view_path_alias)->save();
     if (!empty($view_path_alias)) {
       drupal_set_message(t('The view path alias, "%url", has been created for users with the %permission permission.', array(
         '%permission' => 'view icon',
@@ -121,7 +128,7 @@ function icon_bundle_overview_form_submit($form, $form_state) {
     menu_rebuild();
   }
   if (isset($form_state['values']['icon_api_apache_suppress_warning'])) {
-    variable_set('icon_api_apache_suppress_warning', $form_state['values']['icon_api_apache_suppress_warning']);
+    \Drupal::configFactory()->getEditable('icon.settings')->set('icon_api_apache_suppress_warning', $form_state['values']['icon_api_apache_suppress_warning'])->save();
     // Remove message just set by building the form again.
     unset($_SESSION['messages']['warning']);
   }
@@ -149,7 +156,7 @@ function icon_bundle_overview_form_submit($form, $form_state) {
 function theme_icon_bundle_overview_form($variables) {
   $output = '';
   $form = $variables['form'];
-  $admin = user_access('administer icons');
+  $admin = \Drupal::currentUser()->hasPermission('administer icons');
   $header = array(
     'enable' => t('Enabled'),
     'bundle' => t('Bundle'),
@@ -162,12 +169,12 @@ function theme_icon_bundle_overview_form($variables) {
     array_shift($header);
   }
   $rows = array();
-  foreach (element_children($form['bundles']) as $key) {
+  foreach (\Drupal\Core\Render\Element::children($form['bundles']) as $key) {
     $bundle = $form['bundles'][$key]['#bundle'];
     $row = array();
     if ($admin) {
       $row['status'] = array(
-        'data' => drupal_render($form['bundles'][$key]['status']),
+        'data' => \Drupal::service("renderer")->render($form['bundles'][$key]['status']),
         'class' => 'compact center',
       );
     }
@@ -178,7 +185,10 @@ function theme_icon_bundle_overview_form($variables) {
     );
     $row['provider']['class'] = 'compact nowrap';
     if ($provider = icon_provider_load($bundle['provider'])) {
-      $row['provider']['data'] = !empty($provider['url']) ? l($provider['title'], $provider['url']) : $provider['title'];
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $row['provider']['data'] = !empty($provider['url']) ? l($provider['title'], $provider['url']) : $provider['title'];
+
     }
     else {
       $row['provider']['data'] = $bundle['provider'];
@@ -189,7 +199,7 @@ function theme_icon_bundle_overview_form($variables) {
     if ($bundle['status']) {
       $operations['view'] = array(
         'title' => '<i class="iconapi-view"></i>' . t('View Icons'),
-        'href' => ($admin && arg(0) === 'admin' ? ICON_ADMIN_PATH . '/bundle/' : variable_get('icon_api_view_path_alias', 'icons') . '/') . $bundle['name'],
+        'href' => ($admin && arg(0) === 'admin' ? ICON_ADMIN_PATH . '/bundle/' : \Drupal::config('icon.settings')->get('icon_api_view_path_alias') . '/') . $bundle['name'],
         'html' => TRUE,
       );
       if ($admin) {
@@ -223,11 +233,20 @@ function theme_icon_bundle_overview_form($variables) {
     }
     $rows[] = $row;
   }
-  $output .= theme('table', array(
-    'header' => $header,
-    'rows' => $rows,
-    'empty' => t('No bundles are currently installed.'),
-  ));
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+//
+//
+// @see https://www.drupal.org/node/2195739
+// $output .= theme('table', array(
+//     'header' => $header,
+//     'rows' => $rows,
+//     'empty' => t('No bundles are currently installed.'),
+//   ));
+
   $output .= drupal_render_children($form);
   return $output;
 }
@@ -236,7 +255,14 @@ function theme_icon_bundle_overview_form($variables) {
  * Menu callback for 'icon_bundle_configure_form'.
  */
 function icon_bundle_configure_form($form, &$form_state, $bundle) {
-  drupal_set_title(t('Configure %bundle icons', array('%bundle' => $bundle['title'])), PASS_THROUGH);
+  // @FIXME
+// drupal_set_title() has been removed. There are now a few ways to set the title
+// dynamically, depending on the situation.
+//
+//
+// @see https://www.drupal.org/node/2067859
+// drupal_set_title(t('Configure %bundle icons', array('%bundle' => $bundle['title'])), PASS_THROUGH);
+
   $form_state['bundle'] = $bundle;
   $form['status'] = array(
     '#type' => 'checkbox',
@@ -251,7 +277,7 @@ function icon_bundle_configure_form($form, &$form_state, $bundle) {
   foreach (icon_extension_implements('icon_bundle_configure') as $extension => $type) {
     icon_extension_invoke($type, $extension, 'icon_bundle_configure', $form['settings'], $form_state, $form);
   }
-  $settings = element_children($form['settings']);
+  $settings = \Drupal\Core\Render\Element::children($form['settings']);
   if (empty($settings)) {
     $form['settings']['#access'] = FALSE;
   }
@@ -291,7 +317,7 @@ function icon_bundle_configure_form_submit($form, &$form_state) {
     return;
   }
   $form_state['redirect'] = array(ICON_ADMIN_PATH);
-  form_state_values_clean($form_state);
+  $form_state->cleanValues();
   $bundle = icon_array_merge_recursive($bundle, $form_state['values']);
   if (icon_bundle_save($bundle)) {
     drupal_set_message(t('Configuration for icon bundle %bundle has been saved.', array('%bundle' => $bundle['title'])));
@@ -362,6 +388,6 @@ function icon_bundle_list($bundle) {
   }
   // Allow other modules and themes to alter a bundle's listing.
   $bundle_context = $bundle;
-  drupal_alter('icon_bundle_list', $build, $bundle_context);
+  \Drupal::moduleHandler()->alter('icon_bundle_list', $build, $bundle_context);
   return $build;
 }
