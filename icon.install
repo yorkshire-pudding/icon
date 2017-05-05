@@ -42,7 +42,7 @@ function icon_schema() {
  * Set module weight.
  */
 function icon_set_module_weight($module, $weight = 100) {
-  db_query("UPDATE {system} SET weight = :weight WHERE name = :module AND type = 'module'", array(
+  \Drupal::database()->query("UPDATE {system} SET weight = :weight WHERE name = :module AND type = 'module'", array(
     ':module' => $module,
     ':weight' => $weight,
   ));

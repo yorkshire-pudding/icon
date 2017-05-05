@@ -373,7 +373,7 @@ function icon_bundles($name = NULL, $reset = FALSE) {
         }
       }
       // Gather database bundles (which overrides any module implementations).
-      $database_bundles = db_select('icon_bundle', 'b')
+      $database_bundles = \Drupal::database()->select('icon_bundle', 'b')
         ->fields('b')
         ->execute();
       foreach ($database_bundles as $database_bundle) {
@@ -430,7 +430,7 @@ function icon_bundle_delete(array $bundle = array()) {
   // Execute the query.
   try {
     // Execute query and remove database entries.
-    db_delete('icon_bundle')->condition('name', $bundle['name'])->execute();
+    \Drupal::database()->delete('icon_bundle')->condition('name', $bundle['name'])->execute();
     // Delete files if not in code and path starts in public folder and exists.
     if (empty($bundle['overridden']) && strpos($bundle['path'], 'public://') === 0 && file_exists($bundle['path'])) {
       file_unmanaged_delete_recursive($bundle['path']);
