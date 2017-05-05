@@ -1,7 +1,4 @@
-<?php /**
- * @file
- * Contains \Drupal\icon\Routing\RouteSubscriber.
- */
+<?php
 
 namespace Drupal\icon\Routing;
 

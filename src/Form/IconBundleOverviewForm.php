@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\icon\Form\IconBundleOverviewForm.
- */
-
 namespace Drupal\icon\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
