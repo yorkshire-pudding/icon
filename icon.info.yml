@@ -6,3 +6,4 @@ version: 8.x-1.0
 project: icon
 datestamp: '1490314783'
 type: module
+configure: icon.overview
