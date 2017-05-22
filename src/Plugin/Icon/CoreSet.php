@@ -13,9 +13,9 @@ namespace Drupal\icon\Plugin\Icon;
  *   url = "",
  *   version = "",
  *   path = "",
- *   renderer = "image"
+ *   renderer = "image",
  *   settings = {},
- *   attached = {}
+ *   attached = {},
  * )
  */
 class CoreSet extends IconSetBase {
